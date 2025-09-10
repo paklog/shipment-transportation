@@ -1,0 +1,85 @@
+spring:
+  application:
+    name: shipment-transportation
+
+  data:
+    mongodb:
+      host: localhost
+      port: 27017
+      database: shipment_db
+      auto-index-creation: true
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    properties:
+      schema.registry.url: http://localhost:8081
+    consumer:
+      group-id: shipment-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+  cloud:
+    stream:
+      bindings:
+        packagePacked-in-0:
+          destination: package-packed
+          group: shipment-group
+        shipmentDispatched-out:
+          destination: shipment-dispatched
+        shipmentDelivered-out:
+          destination: shipment-delivered
+
+  main:
+    banner-mode: off
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics
+  endpoint:
+    health:
+      show-details: always
+    metrics:
+      enabled: true
+
+---
+# Docker profile configuration
+spring:
+  config:
+    activate:
+      on-profile: docker
+
+  data:
+    mongodb:
+      host: mongodb
+      port: 27017
+      database: shipment_db
+
+  kafka:
+    bootstrap-servers: kafka:9092
+
+---
+# Test profile configuration
+spring:
+  config:
+    activate:
+      on-profile: test
+
+  data:
+    mongodb:
+      host: localhost
+      port: 27017
+      database: shipment_test_db
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    properties:
+      schema.registry.url: http://localhost:8081

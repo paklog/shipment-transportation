@@ -1,0 +1,93 @@
+openapi: 3.0.3
+info:
+  title: Shipment & Transportation API
+  description: |
+    API for managing and tracking shipments after they have been packed and are ready to leave the warehouse.
+    It provides visibility into a shipment's journey and tracking history.
+  version: 1.0.0
+servers:
+  - url: https://api.example.com/fulfillment/shipment_transport/v1
+paths:
+  /shipments/{shipment_id}/tracking:
+    get:
+      summary: Get Shipment Tracking History
+      description: |
+        Allows a Logistics Coordinator or an automated system to retrieve the full, detailed tracking history for a specific shipment.
+        This corresponds to the user story ST-09.
+      operationId: get_shipment_tracking_history
+      parameters:
+        - name: shipment_id
+          in: path
+          required: true
+          description: The unique system-generated identifier for the shipment.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK. The full shipment and tracking history is returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shipment'
+        '404':
+          description: Not Found. No shipment found with the given ID.
+
+components:
+  schemas:
+    Shipment:
+      type: object
+      properties:
+        shipment_id:
+          type: string
+          format: uuid
+        order_id:
+          type: string
+          format: uuid
+          description: The original fulfillment order ID this shipment belongs to.
+        status:
+          type: string
+          enum: [created, in_transit, delivered, failed_delivery]
+        carrier_name:
+          type: string
+          example: "FedEx"
+        tracking_number:
+          type: string
+          example: "784398712345"
+        created_at:
+          type: string
+          format: date-time
+        dispatched_at:
+          type: string
+          format: date-time
+        delivered_at:
+          type: string
+          format: date-time
+        tracking_history:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrackingEvent'
+
+    TrackingEvent:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status_description:
+          type: string
+          example: "Arrived at sorting facility"
+        location:
+          $ref: '#/components/schemas/Location'
+
+    Location:
+      type: object
+      properties:
+        city:
+          type: string
+        state_or_region:
+          type: string
+        postal_code:
+          type: string
+        country_code:
+          type: string
