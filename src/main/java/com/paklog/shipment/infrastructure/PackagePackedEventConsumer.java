@@ -1,6 +1,7 @@
 package com.paklog.shipment.infrastructure;
 
 import com.paklog.shipment.application.ShipmentApplicationService;
+import com.paklog.shipment.domain.OrderId;
 import com.paklog.shipment.domain.events.PackagePackedCloudEvent;
 import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Component;
@@ -18,6 +19,9 @@ public class PackagePackedEventConsumer {
 
     @Bean
     public Consumer<PackagePackedCloudEvent> packagePacked() {
-        return event -> shipmentApplicationService.createShipmentFromPackage(event);
+        return event -> {
+            OrderId orderId = new OrderId(event.getOrderId());
+            shipmentApplicationService.createShipment(orderId);
+        };
     }
 }

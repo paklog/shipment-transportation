@@ -1,10 +1,10 @@
 package com.paklog.shipment.infrastructure.job;
 
+import com.paklog.shipment.adapter.ICarrierAdapter;
 import com.paklog.shipment.application.ShipmentApplicationService;
 import com.paklog.shipment.domain.Shipment;
 import com.paklog.shipment.domain.TrackingEvent;
 import com.paklog.shipment.domain.TrackingUpdate;
-import com.paklog.shipment.domain.adapter.ICarrierAdapter;
 import com.paklog.shipment.domain.exception.CarrierException;
 import com.paklog.shipment.domain.repository.ShipmentRepository;
 import org.slf4j.Logger;

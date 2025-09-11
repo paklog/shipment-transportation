@@ -3,35 +3,27 @@ package com.paklog.shipment.domain;
 import java.util.Objects;
 import java.util.UUID;
 
-public class ShipmentId {
-    private final String value;
+public final class ShipmentId {
+    private final UUID value;
 
-    private ShipmentId(String value) {
-        this.value = value;
+    private ShipmentId(UUID value) {
+        this.value = Objects.requireNonNull(value);
     }
 
     public static ShipmentId of(String value) {
-        return new ShipmentId(value);
+        return new ShipmentId(UUID.fromString(value));
     }
 
-    public static ShipmentId newId() {
-        return new ShipmentId(UUID.randomUUID().toString());
+    public static ShipmentId generate() {
+        return new ShipmentId(UUID.randomUUID());
     }
 
-    public String getValue() {
+    public UUID getValue() {
         return value;
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        ShipmentId that = (ShipmentId) o;
-        return Objects.equals(value, that.value);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(value);
+    public String toString() {
+        return value.toString();
     }
 }

@@ -1,5 +1,6 @@
 package com.paklog.shipment.domain.repository;
 
+import com.paklog.shipment.domain.LoadId;
 import com.paklog.shipment.domain.OrderId;
 import com.paklog.shipment.domain.Shipment;
 import com.paklog.shipment.domain.ShipmentId;
@@ -15,5 +16,5 @@ public interface ShipmentRepository {
     List<Shipment> findAll();
     void delete(ShipmentId shipmentId);
     boolean existsById(ShipmentId shipmentId);
-}
     List<Shipment> findByLoadId(LoadId loadId);
+}

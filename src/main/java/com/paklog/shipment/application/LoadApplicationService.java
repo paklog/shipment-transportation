@@ -1,46 +1,32 @@
 package com.paklog.shipment.application;
 
-import com.paklog.shipment.domain.Load;
-import com.paklog.shipment.domain.LoadId;
-import com.paklog.shipment.domain.Shipment;
-import com.paklog.shipment.domain.ShipmentId;
+import com.paklog.shipment.adapter.ICarrierAdapter;
+import com.paklog.shipment.domain.*;
 import com.paklog.shipment.domain.repository.ILoadRepository;
 import com.paklog.shipment.domain.repository.ShipmentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-@Service
-public class LoadApplicationService {
-
-    private final ILoadRepository loadRepository;
-    private final ShipmentRepository shipmentRepository;
-
-    import com.paklog.shipment.domain.repository.ShipmentRepository;
-import com.paklog.shipment.adapter.ICarrierAdapter; // Added
-import com.paklog.shipment.domain.ShippingCost; // Added
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List; // Added
-import java.util.Map; // Added
-import java.util.function.Function; // Added
-import java.util.stream.Collectors; // Added
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class LoadApplicationService {
 
     private final ILoadRepository loadRepository;
     private final ShipmentRepository shipmentRepository;
-    private final Map<String, ICarrierAdapter> carrierAdapters; // Added
+    private final Map<String, ICarrierAdapter> carrierAdapters;
 
-    public LoadApplicationService(ILoadRepository loadRepository, ShipmentRepository shipmentRepository, List<ICarrierAdapter> carrierAdapterList) { // Modified
+    public LoadApplicationService(ILoadRepository loadRepository, ShipmentRepository shipmentRepository, List<ICarrierAdapter> carrierAdapterList) {
         this.loadRepository = loadRepository;
         this.shipmentRepository = shipmentRepository;
-        this.carrierAdapters = carrierAdapterList.stream() // Added
-                .collect(Collectors.toMap( // Added
-                        adapter -> adapter.getCarrierName().name(), // Added
-                        Function.identity() // Added
-                )); // Added
+        this.carrierAdapters = carrierAdapterList.stream()
+                .collect(Collectors.toMap(
+                        adapter -> adapter.getCarrierName().name(),
+                        Function.identity()
+                ));
     }
 
     @Transactional
@@ -96,7 +82,7 @@ public class LoadApplicationService {
         boolean tendered = carrierAdapter.tenderLoad(load);
 
         if (tendered) {
-            load.tender(); // Assuming a method on Load to change its status
+            load.tender();
             loadRepository.save(load);
         }
     }
@@ -107,9 +93,9 @@ public class LoadApplicationService {
                 .orElseThrow(() -> new IllegalStateException("Load not found: " + loadId));
 
         if (accepted) {
-            load.book(); // Use existing book method
+            load.book();
         } else {
-            load.reopen(); // Assuming a method on Load to revert status to OPEN
+            load.reopen();
         }
         loadRepository.save(load);
     }
@@ -131,7 +117,7 @@ public class LoadApplicationService {
     }
 
     @Transactional
-    public void assignCarrierToLoad(LoadId loadId, com.paklog.shipment.domain.CarrierName carrierName) {
+    public void assignCarrierToLoad(LoadId loadId, CarrierName carrierName) {
         Load load = loadRepository.findById(loadId)
                 .orElseThrow(() -> new IllegalStateException("Load not found: " + loadId));
         load.assignCarrier(carrierName);
@@ -143,9 +129,7 @@ public class LoadApplicationService {
         Load load = loadRepository.findById(loadId)
                 .orElseThrow(() -> new IllegalStateException("Load not found: " + loadId));
 
-        load.ship(); // Use existing ship method to change status
+        load.ship();
         loadRepository.save(load);
-
-        // In a real system, this would also trigger events to notify other systems.
     }
 }

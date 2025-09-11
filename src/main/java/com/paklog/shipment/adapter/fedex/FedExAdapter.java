@@ -17,7 +17,7 @@ public class FedExAdapter implements ICarrierAdapter {
     }
 
     @Override
-    public String createShipment(Package packageInfo) throws CarrierException {
+    public String createShipment(com.paklog.shipment.domain.Package packageInfo) throws CarrierException {
         // This would call the real FedEx API
         return "trk-" + java.util.UUID.randomUUID().toString();
     }

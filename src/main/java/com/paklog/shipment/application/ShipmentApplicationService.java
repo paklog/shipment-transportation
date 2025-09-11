@@ -10,9 +10,8 @@ import java.util.List;
 public class ShipmentApplicationService {
 
     private final ShipmentRepository shipmentRepository;
-    private final LoadApplicationService loadApplicationService; // Added
+    private final LoadApplicationService loadApplicationService;
 
-    // A known ID for the default unassigned load
     private static final LoadId UNASSIGNED_LOAD_ID = LoadId.of("00000000-0000-0000-0000-000000000000");
 
     public ShipmentApplicationService(ShipmentRepository shipmentRepository, LoadApplicationService loadApplicationService) {
@@ -20,12 +19,13 @@ public class ShipmentApplicationService {
         this.loadApplicationService = loadApplicationService;
     }
 
-    public void createShipmentFromPackage(Package packageInfo) {
-        // Existing logic to create a shipment...
-        Shipment newShipment = new Shipment(ShipmentId.generate(), packageInfo.getOrderId());
+    public void createShipment(OrderId orderId) {
+        Shipment newShipment = new Shipment(ShipmentId.generate(), orderId);
+        // In a real system, carrier selection would happen here
+        newShipment.setCarrierName(CarrierName.FEDEX);
+        newShipment.assignTrackingNumber(new TrackingNumber("trk-mock-12345"));
         shipmentRepository.save(newShipment);
 
-        // New logic to add the shipment to the unassigned load
         loadApplicationService.addShipmentToLoad(UNASSIGNED_LOAD_ID, newShipment.getId());
     }
 

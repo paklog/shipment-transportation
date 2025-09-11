@@ -1,9 +1,6 @@
 package com.paklog.shipment.infrastructure;
 
-import com.paklog.shipment.domain.OrderId;
-import com.paklog.shipment.domain.Shipment;
-import com.paklog.shipment.domain.ShipmentId;
-import com.paklog.shipment.domain.ShipmentStatus;
+import com.paklog.shipment.domain.*;
 import com.paklog.shipment.domain.repository.ShipmentRepository;
 import com.paklog.shipment.infrastructure.persistence.document.ShipmentDocument;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -68,7 +65,6 @@ public class ShipmentMongoRepository implements ShipmentRepository {
         Query query = new Query(Criteria.where("id").is(shipmentId.getValue()));
         return mongoTemplate.exists(query, ShipmentDocument.class);
     }
-}
 
     @Override
     public List<Shipment> findByLoadId(LoadId loadId) {
@@ -79,3 +75,4 @@ public class ShipmentMongoRepository implements ShipmentRepository {
         }
         return List.of();
     }
+}

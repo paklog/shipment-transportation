@@ -7,7 +7,7 @@ import java.util.Optional;
 
 public interface ICarrierAdapter {
 
-    String createShipment(Package packageInfo) throws CarrierException;
+    String createShipment(com.paklog.shipment.domain.Package packageInfo) throws CarrierException;
 
     Optional<TrackingUpdate> getTrackingStatus(TrackingNumber trackingNumber) throws CarrierException;
 

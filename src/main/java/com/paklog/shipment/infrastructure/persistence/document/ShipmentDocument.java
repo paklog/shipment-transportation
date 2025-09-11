@@ -14,7 +14,7 @@ public class ShipmentDocument {
 
     public static ShipmentDocument fromDomain(Shipment shipment) {
         ShipmentDocument doc = new ShipmentDocument();
-        doc.setId(shipment.getId().getValue());
+        doc.setId(shipment.getId().toString());
         doc.setOrderId(shipment.getOrderId().getValue());
         doc.setTrackingNumber(shipment.getTrackingNumber().getValue());
         doc.setStatus(shipment.getStatus().name());
