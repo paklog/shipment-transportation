@@ -14,3 +14,4 @@ Our system is modeled around a rich domain core, which is decoupled from externa
 - [Domain Aggregates](./aggregates.md)
 - [Application Services & Hexagonal Architecture](./application-services.md)
 - [Key Value Objects](./value-objects.md)
+- [The Infrastructure Layer](./infrastructure-layer.md)
