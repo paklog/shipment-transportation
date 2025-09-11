@@ -18,15 +18,17 @@ public class LoadApplicationService {
     private final ILoadRepository loadRepository;
     private final ShipmentRepository shipmentRepository;
     private final Map<String, ICarrierAdapter> carrierAdapters;
+    private final MetricsService metricsService;
 
-    public LoadApplicationService(ILoadRepository loadRepository, ShipmentRepository shipmentRepository, List<ICarrierAdapter> carrierAdapterList) {
+    public LoadApplicationService(ILoadRepository loadRepository, ShipmentRepository shipmentRepository, List<ICarrierAdapter> carrierAdapterList, MetricsService metricsService) {
         this.loadRepository = loadRepository;
         this.shipmentRepository = shipmentRepository;
         this.carrierAdapters = carrierAdapterList.stream()
                 .collect(Collectors.toMap(
-                        adapter -> adapter.getCarrierName().name(),
+                        ICarrierAdapter::getCarrierName,
                         Function.identity()
                 ));
+        this.metricsService = metricsService;
     }
 
     @Transactional
@@ -34,6 +36,7 @@ public class LoadApplicationService {
         LoadId newLoadId = LoadId.generate();
         Load newLoad = new Load(newLoadId);
         loadRepository.save(newLoad);
+        metricsService.loadsCreated.increment(); // Increment metric
         return newLoadId;
     }
 
@@ -84,6 +87,7 @@ public class LoadApplicationService {
         if (tendered) {
             load.tender();
             loadRepository.save(load);
+            metricsService.loadsTendered.increment(); // Increment metric
         }
     }
 
@@ -94,6 +98,7 @@ public class LoadApplicationService {
 
         if (accepted) {
             load.book();
+            metricsService.loadsBooked.increment(); // Increment metric
         } else {
             load.reopen();
         }

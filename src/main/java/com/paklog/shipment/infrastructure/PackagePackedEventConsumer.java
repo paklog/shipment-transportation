@@ -1,5 +1,6 @@
 package com.paklog.shipment.infrastructure;
 
+import com.paklog.shipment.application.MetricsService;
 import com.paklog.shipment.application.ShipmentApplicationService;
 import com.paklog.shipment.domain.OrderId;
 import com.paklog.shipment.domain.events.PackagePackedCloudEvent;
@@ -12,14 +13,17 @@ import java.util.function.Consumer;
 public class PackagePackedEventConsumer {
 
     private final ShipmentApplicationService shipmentApplicationService;
+    private final MetricsService metricsService;
 
-    public PackagePackedEventConsumer(ShipmentApplicationService shipmentApplicationService) {
+    public PackagePackedEventConsumer(ShipmentApplicationService shipmentApplicationService, MetricsService metricsService) {
         this.shipmentApplicationService = shipmentApplicationService;
+        this.metricsService = metricsService;
     }
 
     @Bean
     public Consumer<PackagePackedCloudEvent> packagePacked() {
         return event -> {
+            metricsService.kafkaEventsConsumed.increment(); // Increment metric
             OrderId orderId = new OrderId(event.getOrderId());
             shipmentApplicationService.createShipment(orderId);
         };

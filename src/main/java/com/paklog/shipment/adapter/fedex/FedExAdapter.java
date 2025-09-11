@@ -1,6 +1,7 @@
 package com.paklog.shipment.adapter.fedex;
 
 import com.paklog.shipment.adapter.ICarrierAdapter;
+import com.paklog.shipment.application.MetricsService;
 import com.paklog.shipment.domain.*;
 import com.paklog.shipment.domain.exception.CarrierException;
 import org.springframework.stereotype.Component;
@@ -11,9 +12,11 @@ import java.util.Optional;
 @Component
 public class FedExAdapter implements ICarrierAdapter {
     private final FedExApiClient fedExApiClient;
+    private final MetricsService metricsService;
 
-    public FedExAdapter(FedExApiClient fedExApiClient) {
+    public FedExAdapter(FedExApiClient fedExApiClient, MetricsService metricsService) {
         this.fedExApiClient = fedExApiClient;
+        this.metricsService = metricsService;
     }
 
     @Override
@@ -30,6 +33,7 @@ public class FedExAdapter implements ICarrierAdapter {
 
     @Override
     public ShippingCost rateLoad(Load load) throws CarrierException {
+        metricsService.incrementCarrierApiCalls("FedEx", "rateLoad", "success");
         // Mock implementation: $10 per shipment + $0.50 per unit of weight
         BigDecimal shipmentCost = BigDecimal.TEN.multiply(new BigDecimal(load.getShipmentIds().size()));
         BigDecimal weightCost = new BigDecimal("0.50").multiply(load.getTotalWeight());
@@ -39,6 +43,7 @@ public class FedExAdapter implements ICarrierAdapter {
 
     @Override
     public boolean tenderLoad(Load load) throws CarrierException {
+        metricsService.incrementCarrierApiCalls("FedEx", "tenderLoad", "success");
         // Mock implementation: always successful
         System.out.printf("Tendering load %s to FedEx... SUCCESS%n", load.getId());
         return true;
