@@ -1,4 +1,6 @@
-package com.paklog.shipment.domain;
+package com.paklog.shipment.infrastructure.persistence.document;
+
+import com.paklog.shipment.domain.TrackingEvent;
 
 import java.time.Instant;
 

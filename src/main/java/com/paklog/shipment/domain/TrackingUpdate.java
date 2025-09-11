@@ -1,33 +1,27 @@
 package com.paklog.shipment.domain;
 
-import java.time.Instant;
+import java.util.List;
+import java.util.Objects;
 
-public class TrackingUpdate {
-    private final String status;
-    private final String statusDescription;
-    private final String location;
-    private final Instant lastUpdated;
-
-    public TrackingUpdate(String status, String statusDescription, String location, Instant lastUpdated) {
-        this.status = status;
-        this.statusDescription = statusDescription;
-        this.location = location;
-        this.lastUpdated = lastUpdated;
+public record TrackingUpdate(
+    TrackingEvent latestEvent,
+    boolean isDelivered,
+    List<TrackingEvent> newEvents
+) {
+    public TrackingUpdate {
+        Objects.requireNonNull(latestEvent, "Latest event cannot be null");
+        Objects.requireNonNull(newEvents, "New events list cannot be null");
     }
 
-    public String getStatus() {
-        return status;
+    public TrackingEvent getLatestEvent() {
+        return latestEvent;
     }
 
-    public String getStatusDescription() {
-        return statusDescription;
+    public boolean isDelivered() {
+        return isDelivered;
     }
 
-    public String getLocation() {
-        return location;
-    }
-
-    public Instant getLastUpdated() {
-        return lastUpdated;
+    public List<TrackingEvent> getNewEvents() {
+        return newEvents;
     }
 }
