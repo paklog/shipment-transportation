@@ -1,219 +1,71 @@
 asyncapi: 2.5.0
 info:
-  title: Shipment & Transportation Events (CloudEvents)
+  title: Shipment & Transportation Async API
   version: 1.0.0
-  description: |
-    Defines the event-driven contract for the Shipment & Transportation Bounded Context.
-    It consumes PackagePacked events to begin the shipping process and publishes events about a shipment's journey.
-    All events conform to the CloudEvents v1.0 specification.
-
+  description: |-
+    Event contracts implemented by the shipment transportation service.
+    The service consumes `package-packed` events to create shipments and emits persisted
+    outbox events to Kafka topics that match each event's type.
+defaultContentType: application/json
 servers:
-  production:
-    url: kafka-prod.example.com:9092
+  local:
+    url: localhost:9092
     protocol: kafka
-    description: Production Kafka broker
-
+    description: Default Kafka bootstrap server used by the service during local development.
 channels:
-  fulfillment.warehouse.v1.events:
-    description: The topic this service subscribes to for upstream events from the warehouse.
+  package-packed:
+    description: Upstream warehouse events consumed to trigger shipment creation.
     subscribe:
-      summary: Consume a PackagePacked event to trigger the carrier selection and label generation process.
+      summary: Consume package packed notifications.
+      operationId: consumePackagePacked
       message:
-        $ref: '#/components/messages/PackagePacked'
-
-  fulfillment.shipment.v1.events:
-    description: The topic this service publishes its own domain events to.
+        $ref: '#/components/messages/PackagePackedEvent'
+  '{eventType}':
+    description: Dynamic Kafka topic derived from the outbox event type.
+    parameters:
+      eventType:
+        description: Event type persisted in the outbox (for example `shipment-dispatched`).
+        schema:
+          type: string
     publish:
-      summary: Publish an event related to a shipment's lifecycle.
+      summary: Publish serialized outbox events.
+      operationId: publishOutboxEvent
       message:
-        oneOf:
-          - $ref: '#/components/messages/ShipmentDispatched'
-          - $ref: '#/components/messages/ShipmentDelivered'
-
+        $ref: '#/components/messages/OutboxEventMessage'
 components:
   messages:
-    PackagePacked:
-      name: package_packed
+    PackagePackedEvent:
+      name: packagePacked
       title: Package Packed
-      summary: Consumes this event to begin the shipping process. This is the primary input to this Bounded Context.
-      contentType: application/cloudevents+json
       payload:
-        $ref: "#/components/schemas/PackagePackedCloudEvent"
-
-    ShipmentDispatched:
-      name: shipment_dispatched
-      title: Shipment Dispatched
-      summary: Published when a carrier has been assigned and a tracking number is generated. Signals that the package is in transit.
-      contentType: application/cloudevents+json
+        $ref: '#/components/schemas/PackagePackedPayload'
+    OutboxEventMessage:
+      name: outboxEvent
+      title: Outbox Event
       payload:
-        $ref: "#/components/schemas/ShipmentDispatchedCloudEvent"
-
-    ShipmentDelivered:
-      name: shipment_delivered
-      title: Shipment Delivered
-      summary: Published when the carrier confirms final delivery. This signals the successful completion of the fulfillment journey.
-      contentType: application/cloudevents+json
-      payload:
-        $ref: "#/components/schemas/ShipmentDeliveredCloudEvent"
-
+        $ref: '#/components/schemas/OutboxEventPayload'
   schemas:
-    # --- Incoming Event Definition ---
-    PackagePackedCloudEvent:
+    PackagePackedPayload:
       type: object
-      required: [specversion, type, source, id, time, data]
       properties:
-        specversion:
-          type: string
-          enum: ["1.0"]
-        type:
-          type: string
-          enum: ["com.example.fulfillment.warehouse.package.packed"]
-        source:
-          type: string
-          format: uri-reference
-        subject:
-          type: string
-        id:
+        packageId:
           type: string
           format: uuid
-        time:
+        orderId:
+          type: string
+        packedAt:
           type: string
           format: date-time
-        datacontenttype:
-          type: string
-          enum: ["application/json"]
-        data:
-          $ref: '#/components/schemas/PackagePackedData'
-
-    # --- Outgoing Event Definitions ---
-    ShipmentDispatchedCloudEvent:
-      type: object
-      required: [specversion, type, source, id, time, data]
-      properties:
-        specversion:
-          type: string
-          enum: ["1.0"]
-        type:
-          type: string
-          enum: ["com.example.fulfillment.shipment.dispatched"]
-        source:
-          type: string
-          format: uri-reference
-          example: "/fulfillment/shipment-transport-service"
-        subject:
-          type: string
-          description: The `shipment_id` of the dispatched shipment.
-        id:
-          type: string
-          format: uuid
-        time:
-          type: string
-          format: date-time
-        datacontenttype:
-          type: string
-          enum: ["application/json"]
-        data:
-          $ref: '#/components/schemas/ShipmentDispatchedData'
-
-    ShipmentDeliveredCloudEvent:
-      type: object
-      required: [specversion, type, source, id, time, data]
-      properties:
-        specversion:
-          type: string
-          enum: ["1.0"]
-        type:
-          type: string
-          enum: ["com.example.fulfillment.shipment.delivered"]
-        source:
-          type: string
-          format: uri-reference
-          example: "/fulfillment/shipment-transport-service"
-        subject:
-          type: string
-          description: The `shipment_id` of the delivered shipment.
-        id:
-          type: string
-          format: uuid
-        time:
-          type: string
-          format: date-time
-        datacontenttype:
-          type: string
-          enum: ["application/json"]
-        data:
-          $ref: '#/components/schemas/ShipmentDeliveredData'
-
-    # --- Domain-Specific Data Payloads ---
-    PackagePackedData:
+      required: [packageId, orderId, packedAt]
+    OutboxEventPayload:
       type: object
       properties:
-        package:
-          $ref: '#/components/schemas/Package'
-
-    ShipmentDispatchedData:
-      type: object
-      properties:
-        shipment_id:
+        aggregateType:
           type: string
-          format: uuid
-        order_id:
+        eventType:
           type: string
-          format: uuid
-        carrier_name:
-          type: string
-        tracking_number:
-          type: string
-        dispatched_at:
-          type: string
-          format: date-time
-
-    ShipmentDeliveredData:
-      type: object
-      properties:
-        shipment_id:
-          type: string
-          format: uuid
-        order_id:
-          type: string
-          format: uuid
-        delivered_at:
-          type: string
-          format: date-time
-
-    # --- Reusable Domain Model Schemas ---
-    Package:
-      type: object
-      properties:
-        package_id:
-          type: string
-          format: uuid
-        order_id:
-          type: string
-          format: uuid
-        weight:
-          $ref: '#/components/schemas/Weight'
-        dimensions:
-          $ref: '#/components/schemas/Dimensions'
-
-    Weight:
-      type: object
-      properties:
-        value:
-          type: number
-        unit:
-          type: string
-          example: "kg"
-
-    Dimensions:
-      type: object
-      properties:
-        length:
-          type: number
-        width:
-          type: number
-        height:
-          type: number
-        unit:
-          type: string
-          example: "cm"
+        payload:
+          description: JSON payload produced by the aggregate.
+          type: object
+          additionalProperties: true
+      required: [aggregateType, eventType, payload]

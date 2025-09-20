@@ -1,93 +1,256 @@
 openapi: 3.0.3
 info:
   title: Shipment & Transportation API
-  description: |
-    API for managing and tracking shipments after they have been packed and are ready to leave the warehouse.
-    It provides visibility into a shipment's journey and tracking history.
+  description: REST endpoints exposed by the shipment transportation service.
   version: 1.0.0
 servers:
-  - url: https://api.example.com/fulfillment/shipment_transport/v1
+  - url: http://localhost:8080
 paths:
-  /shipments/{shipment_id}/tracking:
+  /shipments:
     get:
-      summary: Get Shipment Tracking History
-      description: |
-        Allows a Logistics Coordinator or an automated system to retrieve the full, detailed tracking history for a specific shipment.
-        This corresponds to the user story ST-09.
-      operationId: get_shipment_tracking_history
+      summary: List shipments filtered by status
+      operationId: listShipments
       parameters:
-        - name: shipment_id
-          in: path
+        - name: status
+          in: query
+          description: Shipment status filter. The controller currently supports only the `unassigned` status.
           required: true
-          description: The unique system-generated identifier for the shipment.
           schema:
             type: string
-            format: uuid
+            enum: [unassigned]
       responses:
         '200':
-          description: OK. The full shipment and tracking history is returned.
+          description: Shipments matching the requested status.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Shipment'
-        '404':
-          description: Not Found. No shipment found with the given ID.
-
+                type: array
+                items:
+                  $ref: '#/components/schemas/Shipment'
+  /loads:
+    post:
+      summary: Create a new load
+      operationId: createLoad
+      responses:
+        '201':
+          description: Load created successfully.
+          headers:
+            Location:
+              description: URI of the newly created load.
+              schema:
+                type: string
+          content: {}
+  /loads/{loadId}/shipments:
+    post:
+      summary: Add a shipment to a load
+      operationId: addShipmentToLoad
+      parameters:
+        - $ref: '#/components/parameters/LoadIdPathParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddShipmentRequest'
+      responses:
+        '200':
+          description: Shipment added to the load.
+  /loads/{loadId}/carrier:
+    put:
+      summary: Assign a carrier to a load
+      operationId: assignCarrier
+      parameters:
+        - $ref: '#/components/parameters/LoadIdPathParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignCarrierRequest'
+      responses:
+        '200':
+          description: Carrier assigned successfully.
+  /loads/{loadId}/rate:
+    get:
+      summary: Rate a load using its assigned carrier
+      operationId: rateLoad
+      parameters:
+        - $ref: '#/components/parameters/LoadIdPathParam'
+      responses:
+        '200':
+          description: Calculated rate returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShippingCost'
+  /loads/{loadId}/tender:
+    post:
+      summary: Tender a load to its assigned carrier
+      operationId: tenderLoad
+      parameters:
+        - $ref: '#/components/parameters/LoadIdPathParam'
+      responses:
+        '200':
+          description: Tender request accepted for processing.
+  /loads/{loadId}/tender/response:
+    post:
+      summary: Handle carrier response to a tender
+      operationId: handleTenderResponse
+      parameters:
+        - $ref: '#/components/parameters/LoadIdPathParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenderResponseRequest'
+      responses:
+        '200':
+          description: Tender response processed.
+  /loads/{loadId}/schedule-pickup:
+    post:
+      summary: Schedule a pickup for a booked load
+      operationId: schedulePickup
+      parameters:
+        - $ref: '#/components/parameters/LoadIdPathParam'
+      responses:
+        '200':
+          description: Pickup scheduled successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PickupConfirmationResponse'
+  /loads/{loadId}/bol:
+    get:
+      summary: Retrieve a Bill of Lading
+      operationId: getBillOfLading
+      parameters:
+        - $ref: '#/components/parameters/LoadIdPathParam'
+      responses:
+        '200':
+          description: Bill of Lading content in plain text.
+          content:
+            text/plain:
+              schema:
+                type: string
+  /loads/{loadId}/ship-confirm:
+    post:
+      summary: Confirm that a load has shipped
+      operationId: shipConfirm
+      parameters:
+        - $ref: '#/components/parameters/LoadIdPathParam'
+      responses:
+        '200':
+          description: Load marked as shipped.
 components:
+  parameters:
+    LoadIdPathParam:
+      name: loadId
+      in: path
+      required: true
+      description: Identifier of the load.
+      schema:
+        type: string
+        format: uuid
   schemas:
     Shipment:
       type: object
       properties:
-        shipment_id:
-          type: string
-          format: uuid
-        order_id:
-          type: string
-          format: uuid
-          description: The original fulfillment order ID this shipment belongs to.
+        id:
+          $ref: '#/components/schemas/ShipmentId'
+        orderId:
+          $ref: '#/components/schemas/OrderId'
         status:
-          type: string
-          enum: [created, in_transit, delivered, failed_delivery]
-        carrier_name:
-          type: string
-          example: "FedEx"
-        tracking_number:
-          type: string
-          example: "784398712345"
-        created_at:
-          type: string
-          format: date-time
-        dispatched_at:
-          type: string
-          format: date-time
-        delivered_at:
-          type: string
-          format: date-time
-        tracking_history:
+          $ref: '#/components/schemas/ShipmentStatus'
+        carrierName:
+          $ref: '#/components/schemas/CarrierName'
+        trackingNumber:
+          $ref: '#/components/schemas/TrackingNumber'
+        trackingEvents:
           type: array
           items:
             $ref: '#/components/schemas/TrackingEvent'
-
+    ShipmentId:
+      type: object
+      properties:
+        value:
+          type: string
+          format: uuid
+      required: [value]
+    OrderId:
+      type: object
+      properties:
+        value:
+          type: string
+      required: [value]
+    TrackingNumber:
+      type: object
+      properties:
+        value:
+          type: string
+      required: [value]
+    ShipmentStatus:
+      type: string
+      enum:
+        - CREATED
+        - IN_TRANSIT
+        - DELIVERED
+        - FAILED_DELIVERY
+    CarrierName:
+      type: string
+      enum:
+        - FEDEX
+        - UPS
     TrackingEvent:
       type: object
       properties:
+        status:
+          type: string
+        statusDescription:
+          type: string
+        location:
+          type: string
         timestamp:
           type: string
           format: date-time
-        status_description:
+        eventCode:
           type: string
-          example: "Arrived at sorting facility"
-        location:
-          $ref: '#/components/schemas/Location'
-
-    Location:
+        detailedDescription:
+          type: string
+    AddShipmentRequest:
       type: object
       properties:
-        city:
+        shipmentId:
           type: string
-        state_or_region:
+          format: uuid
+      required: [shipmentId]
+    AssignCarrierRequest:
+      type: object
+      properties:
+        carrierName:
+          $ref: '#/components/schemas/CarrierName'
+      required: [carrierName]
+    TenderResponseRequest:
+      type: object
+      properties:
+        accepted:
+          type: boolean
+      required: [accepted]
+    PickupConfirmationResponse:
+      type: object
+      properties:
+        confirmationNumber:
           type: string
-        postal_code:
+      required: [confirmationNumber]
+    ShippingCost:
+      type: object
+      properties:
+        amount:
+          type: number
+          format: double
+        currency:
           type: string
-        country_code:
-          type: string
+        estimatedDeliveryDays:
+          type: integer
+          minimum: 1
+      required: [amount, currency, estimatedDeliveryDays]
