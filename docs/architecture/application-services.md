@@ -1,20 +1,32 @@
-# Application Services & Hexagonal Architecture
+# Application Services
 
-The application services represent the use cases of our system. They form the core of our Hexagonal (or Ports and Adapters) Architecture. This layer acts as an intermediary between the outside world (e.g., web controllers, event consumers) and the rich business logic encapsulated within our domain model.
+Application services implement use cases. They coordinate aggregates, enforce transactional rules, and keep the domain core safely behind ports defined by Hexagonal Architecture.
 
-## Architectural Analysis
+## Overview
 
-- **Orchestration, Not Logic:** Application services do not contain business logic themselves. Instead, they orchestrate the domain objects. A typical flow involves loading an aggregate from a repository, calling methods on that aggregate to perform a business action, and saving the result back to the repository.
+- Expose operations that the outside world can invoke, such as creating loads or reacting to events.
+- Delegate business rules to aggregates and value objects; services orchestrate rather than decide.
+- Depend on interfaces only, supporting technology-neutral composition.
 
-- **Dependency Inversion:** The services depend on **interfaces** (ports), not on concrete implementations. For example, `LoadApplicationService` depends on the `ILoadRepository` interface, not on the `LoadMongoRepository` class. This decouples our application core from external technologies like MongoDB or a specific carrier's API, allowing us to swap them out with minimal impact.
+## Core Responsibilities
 
-- **Ports and Adapters:**
-    - **Inbound Ports:** The application services themselves are the primary inbound port, exposing the application's capabilities to the outside world. They are called by adapters like REST controllers or Kafka consumers.
-    - **Outbound Ports:** The repository and adapter interfaces (`ILoadRepository`, `ShipmentRepository`, `ICarrierAdapter`) are the outbound ports. They define the contracts for how the application communicates with external systems (the database, carrier APIs, etc.). The concrete implementations of these ports reside in the infrastructure layer.
+- **Use-case Orchestration:** Load aggregates from repositories, call domain methods, persist changes, and publish events.
+- **Transactional Control:** Determine the scope of a unit of work while keeping domain logic inside aggregates.
+- **Validation Gateway:** Perform cross-aggregate checks (existence, permissions) before invoking domain behaviour.
 
-## Class Diagram
+## Ports and Adapters
 
-This diagram illustrates the separation of concerns. The `LoadApplicationService` sits in the middle, depending only on abstractions (ports). The `LoadController` (an inbound adapter) calls the service, and the service uses the ports, which are implemented by outbound adapters like `LoadMongoRepository` and `FedExAdapter`.
+- **Inbound Ports:** Application services themselves form the inbound ports; adapters such as REST controllers or message consumers call them.
+- **Outbound Ports:** Repository and integration interfaces (`ILoadRepository`, `ShipmentRepository`, `ICarrierAdapter`) abstract persistence and external systems.
+- **Dependency Inversion:** Concrete adapters live in the infrastructure layer and implement the outbound ports, enabling swap-friendly technology choices.
+
+## Collaboration Flow
+
+1. A driving adapter (for example, `LoadController`) validates input and invokes the relevant application service method.
+2. The service loads the required aggregate via its repository port and performs intent-driven operations on the aggregate.
+3. After the aggregate enforces its invariants, the service saves it and coordinates further actions such as rating, tendering, or emitting domain events.
+
+## Diagram
 
 ```mermaid
 classDiagram
@@ -60,3 +72,9 @@ classDiagram
     LoadMongoRepository ..|> ILoadRepository : implements
     FedExAdapter ..|> ICarrierAdapter : implements
 ```
+
+## Related Documents
+
+- Return to the navigation hub via the [Docs Index](../README.md).
+- Review the aggregate behaviour invoked here in [Domain Aggregates](./aggregates.md).
+- See the adapter implementations that fulfill these ports in [Infrastructure Layer](./infrastructure-layer.md).

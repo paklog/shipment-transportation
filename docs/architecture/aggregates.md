@@ -1,18 +1,30 @@
 # Domain Aggregates
 
-In our domain, an aggregate is a cluster of associated objects that we treat as a single unit for the purpose of data changes. Each aggregate has a root and a boundary. The root is the single, specific entity within the aggregate that is accessible from the outside. The boundary defines what is inside the aggregate. Nothing outside the boundary can hold a reference to anything inside, except to the root.
+Aggregates define the transactional boundaries of the domain. Each aggregate exposes a single root, guards its invariants, and keeps references to other aggregates by identity so consistency stays local.
 
-## 1. The `Shipment` Aggregate
+## Aggregate Map
 
-The `Shipment` is a core aggregate in our domain. Its primary responsibility is to represent a single, trackable unit from its creation until it is assigned to a load.
+- `Shipment` keeps the life cycle and tracking history for a single shipment, coordinating its own value objects and events.
+- `Load` groups multiple shipments for transport, ensuring planning and tendering rules are respected without reaching across other aggregates.
 
-### DDD Analysis
+## `Shipment` Aggregate
 
-- **Aggregate Root:** `Shipment` is the root entity. All access to its internal state, such as the tracking history, must go through the `Shipment` object. This ensures its invariants (business rules) are always maintained.
-- **Entity:** `TrackingEvent` is an entity *within* the `Shipment` aggregate. It has its own identity based on its properties (like timestamp and status), but it has no global identity outside of its parent `Shipment`. It cannot be queried for directly.
-- **Value Objects:** The aggregate is composed of numerous value objects (`ShipmentId`, `OrderId`, `TrackingNumber`, `CarrierName`, `ShipmentStatus`). These objects are immutable and are defined by their attributes, not by an ID. They ensure that the data within our aggregate is always valid and meaningful.
+### Purpose
 
-### Class Diagram
+Represent one shipment from creation through assignment, capturing tracking history and current logistics status.
+
+### Key Invariants
+
+- All mutations flow through the `Shipment` root to keep the tracking history consistent.
+- `TrackingEvent` instances exist only inside a `Shipment`; they cannot be referenced externally.
+- Value objects such as `ShipmentId`, `OrderId`, `TrackingNumber`, `CarrierName`, and `ShipmentStatus` validate themselves before the aggregate changes state.
+
+### Collaboration Notes
+
+- Application services load the aggregate through its repository and invoke intent-revealing methods like `addTrackingEvent` or `assignTrackingNumber`.
+- External systems observe the aggregate through domain events rather than holding direct references to child entities.
+
+### Diagram
 
 ```mermaid
 classDiagram
@@ -65,19 +77,24 @@ classDiagram
     Shipment "1" *-- "0..*" TrackingEvent : contains
 ```
 
----
+## `Load` Aggregate
 
-## 2. The `Load` Aggregate
+### Purpose
 
-The `Load` aggregate represents a collection of shipments grouped for transport, such as a single truck. This is the central aggregate for our new transportation planning capabilities.
+Coordinate transportation for a set of shipments, driving planning, carrier assignment, and dispatch life cycle.
 
-### DDD Analysis
+### Key Invariants
 
-- **Aggregate Root:** `Load` is the root, managing the state of the entire transportation unit.
-- **Reference by Identity:** Crucially, the `Load` aggregate does **not** contain the full `Shipment` objects. Instead, it holds a list of `ShipmentId`s. This is a fundamental DDD pattern for modeling relationships between aggregates. It keeps the `Load` aggregate small and loosely coupled, preventing a single transaction from spanning multiple, potentially large, aggregates. If we need details of a shipment, we use its ID to fetch it from its own repository.
-- **Consistency Boundary:** The `Load`'s invariants are focused on the load itself (e.g., you can't add a shipment to a `SHIPPED` load). It is not responsible for the internal consistency of each individual `Shipment`.
+- Only the `Load` root can transition the load state (e.g., from `PLANNED` to `SHIPPED`).
+- Shipments are referenced by `ShipmentId` to avoid coupling one consistency boundary to another.
+- Operations such as `tender`, `book`, and `ship` enforce sequencing rules and carrier presence.
 
-### Class Diagram
+### Collaboration Notes
+
+- Application services inject the load repository and the shipment repository, allowing validation that referenced shipments exist.
+- Domain events emitted by the aggregate can trigger updates in other contexts (rates, documents) without breaking aggregate boundaries.
+
+### Diagram
 
 ```mermaid
 classDiagram
@@ -117,3 +134,9 @@ classDiagram
     Load "1" *-- "0..1" CarrierName : contains
     Load "1" o-- "0..*" ShipmentId : references
 ```
+
+## Related Documents
+
+- Return to the navigation hub via the [Docs Index](../README.md).
+- Review how application services orchestrate these aggregates in [Application Services](./application-services.md).
+- Dive into the supporting value objects in [Key Value Objects](./value-objects.md).

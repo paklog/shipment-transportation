@@ -1,16 +1,22 @@
 # Key Value Objects
 
-Value Objects are a fundamental pattern in Domain-Driven Design. They are objects that we care about for *what they are*, not *who they are*. They have no conceptual identity and are defined by their attributes. Key characteristics include immutability, descriptive power, and self-validation.
+Value objects capture domain concepts by describing what they are rather than who they are. They enrich the ubiquitous language, keep data valid, and avoid primitive obsession throughout the aggregates.
 
-## Analysis
+## Characteristics
 
-- **Immutability:** Once created, a value object cannot be changed. If you need a different version, you create a new instance. This makes them thread-safe and predictable.
-- **Self-Validation:** A value object is responsible for ensuring it is always in a valid state. For example, a `Weight` object cannot be created with a negative value. This pushes validation logic deep into the domain model.
-- **Context and Meaning:** Instead of passing around primitive types like `String` or `double`, we use value objects to add context and meaning. A `TrackingNumber` is more expressive than a simple `String`.
+- **Immutable:** Any change results in a new instance, which keeps calculations and multi-threaded flows predictable.
+- **Self-validating:** Invariants such as positive weights or valid currencies live inside the value object, not scattered across services.
+- **Contextual:** Types like `TrackingNumber` or `Weight` express meaning better than raw strings or numbers, helping the code read like the business language.
 
-## Class Diagram: Package & ShippingCost
+## Usage Guidelines
 
-This diagram shows two important value objects. `Package` is a composite value object that describes the physical properties of an item being shipped. `ShippingCost` represents the financial aspect of a shipment.
+- Create value objects at the boundaries of the system (controllers, messaging) before invoking domain logic.
+- Compose them inside aggregates to highlight invariants and avoid leaking primitive fields.
+- Prefer small, focused behaviour on the value object itself (conversion, formatting) over utility helpers elsewhere.
+
+## Example Diagram
+
+The following composite shows how multiple value objects collaborate to describe a shipment parcel and its cost.
 
 ```mermaid
 classDiagram
@@ -46,3 +52,9 @@ classDiagram
     Package "1" *-- "1" Weight
     Package "1" *-- "1" Dimensions
 ```
+
+## Related Documents
+
+- Return to the navigation hub via the [Docs Index](../README.md).
+- See how these value objects shape aggregate state in [Domain Aggregates](./aggregates.md).
+- Understand how application services construct and validate them in [Application Services](./application-services.md).
