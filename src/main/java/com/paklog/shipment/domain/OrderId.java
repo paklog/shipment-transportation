@@ -6,6 +6,9 @@ public class OrderId {
     private final String value;
 
     public OrderId(String value) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("OrderId cannot be null or blank");
+        }
         this.value = value;
     }
 

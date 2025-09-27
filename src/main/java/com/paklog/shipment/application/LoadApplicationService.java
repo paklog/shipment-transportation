@@ -25,7 +25,7 @@ public class LoadApplicationService {
         this.shipmentRepository = shipmentRepository;
         this.carrierAdapters = carrierAdapterList.stream()
                 .collect(Collectors.toMap(
-                        ICarrierAdapter::getCarrierName,
+                        adapter -> adapter.getCarrierName().name(),
                         Function.identity()
                 ));
         this.metricsService = metricsService;

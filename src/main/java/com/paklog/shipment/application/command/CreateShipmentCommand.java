@@ -1,5 +1,6 @@
 package com.paklog.shipment.application.command;
 
+import com.paklog.shipment.domain.OrderId;
 import jakarta.validation.constraints.NotBlank;
 
 public class CreateShipmentCommand {
@@ -18,7 +19,11 @@ public class CreateShipmentCommand {
         return packageId;
     }
 
-    public String getOrderId() {
+    public OrderId getOrderId() {
+        return OrderId.of(orderId);
+    }
+
+    public String getOrderIdAsString() {
         return orderId;
     }
 }

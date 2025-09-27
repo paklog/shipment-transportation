@@ -1,6 +1,7 @@
 package com.paklog.shipment.domain;
 
 import java.time.Instant;
+import java.util.Objects;
 
 public class TrackingEvent {
     private final String status;
@@ -11,10 +12,10 @@ public class TrackingEvent {
     private final String detailedDescription;
 
     public TrackingEvent(String status, String statusDescription, String location, Instant timestamp, String eventCode, String detailedDescription) {
-        this.status = status;
-        this.statusDescription = statusDescription;
-        this.location = location;
-        this.timestamp = timestamp;
+        this.status = Objects.requireNonNull(status, "status cannot be null");
+        this.statusDescription = Objects.requireNonNull(statusDescription, "statusDescription cannot be null");
+        this.location = Objects.requireNonNull(location, "location cannot be null");
+        this.timestamp = Objects.requireNonNull(timestamp, "timestamp cannot be null");
         this.eventCode = eventCode;
         this.detailedDescription = detailedDescription;
     }

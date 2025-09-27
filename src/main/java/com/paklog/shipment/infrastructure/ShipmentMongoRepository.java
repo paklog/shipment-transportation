@@ -1,8 +1,13 @@
 package com.paklog.shipment.infrastructure;
 
-import com.paklog.shipment.domain.*;
+import com.paklog.shipment.domain.LoadId;
+import com.paklog.shipment.domain.OrderId;
+import com.paklog.shipment.domain.Shipment;
+import com.paklog.shipment.domain.ShipmentId;
+import com.paklog.shipment.domain.ShipmentStatus;
+import com.paklog.shipment.domain.TrackingNumber;
 import com.paklog.shipment.domain.repository.ShipmentRepository;
-import com.paklog.shipment.infrastructure.persistence.document.ShipmentDocument;
+import com.paklog.shipment.infrastructure.persistence.ShipmentDocument;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;

@@ -10,6 +10,8 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class MetricsService {
 
+    private final MeterRegistry registry;
+
     // Business Metrics
     public final Counter shipmentsCreated;
     public final Counter loadsCreated;
@@ -18,9 +20,10 @@ public class MetricsService {
 
     // Infrastructure Metrics
     private final Counter carrierApiCalls;
-    private final Counter kafkaEventsConsumed;
+    public final Counter kafkaEventsConsumed;
 
     public MetricsService(MeterRegistry registry) {
+        this.registry = registry;
         // Business Metrics
         this.shipmentsCreated = Counter.builder("shipments.created")
                 .description("Total number of shipments created")
@@ -49,6 +52,12 @@ public class MetricsService {
     }
 
     public void incrementCarrierApiCalls(String carrier, String operation, String status) {
-        carrierApiCalls.tag("carrier", carrier).tag("operation", operation).tag("status", status).increment();
+        Counter.builder("carrier.api.calls")
+                .description("Total calls to external carrier APIs")
+                .tag("carrier", carrier)
+                .tag("operation", operation)
+                .tag("status", status)
+                .register(registry)
+                .increment();
     }
 }

@@ -7,7 +7,7 @@ public final class ShipmentId {
     private final UUID value;
 
     private ShipmentId(UUID value) {
-        this.value = Objects.requireNonNull(value);
+        this.value = Objects.requireNonNull(value, "ShipmentId cannot be null");
     }
 
     public static ShipmentId of(String value) {

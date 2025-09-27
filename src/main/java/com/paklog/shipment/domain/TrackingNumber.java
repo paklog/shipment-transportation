@@ -6,7 +6,14 @@ public class TrackingNumber {
     private final String value;
 
     public TrackingNumber(String value) {
-        this.value = value;
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("TrackingNumber cannot be null or blank");
+        }
+        String sanitized = value.trim();
+        if (!sanitized.matches("[A-Za-z0-9_-]+")) {
+            throw new IllegalArgumentException("TrackingNumber contains invalid characters");
+        }
+        this.value = sanitized;
     }
 
     public static TrackingNumber of(String value) {

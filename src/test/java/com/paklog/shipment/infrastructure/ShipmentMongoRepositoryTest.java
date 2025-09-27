@@ -1,6 +1,11 @@
 package com.paklog.shipment.infrastructure;
 
-import com.paklog.shipment.domain.*;
+import com.paklog.shipment.domain.CarrierName;
+import com.paklog.shipment.domain.OrderId;
+import com.paklog.shipment.domain.Shipment;
+import com.paklog.shipment.domain.ShipmentId;
+import com.paklog.shipment.domain.TrackingNumber;
+import com.paklog.shipment.infrastructure.persistence.ShipmentDocument;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,7 +40,8 @@ class ShipmentMongoRepositoryTest {
         shipmentId = ShipmentId.newId();
         orderId = OrderId.of("order-123");
         trackingNumber = TrackingNumber.of("track-456");
-        mockShipment = new Shipment(shipmentId, orderId, trackingNumber, CarrierName.FEDEX, ShipmentStatus.CREATED);
+        mockShipment = Shipment.newShipment(shipmentId, orderId, CarrierName.FEDEX);
+        mockShipment.assignTrackingNumber(trackingNumber);
         mockShipmentDocument = ShipmentDocument.fromDomain(mockShipment);
     }
 

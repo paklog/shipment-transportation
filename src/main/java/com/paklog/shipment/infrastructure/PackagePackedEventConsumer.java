@@ -2,6 +2,7 @@ package com.paklog.shipment.infrastructure;
 
 import com.paklog.shipment.application.MetricsService;
 import com.paklog.shipment.application.ShipmentApplicationService;
+import com.paklog.shipment.application.command.CreateShipmentCommand;
 import com.paklog.shipment.domain.OrderId;
 import com.paklog.shipment.domain.events.PackagePackedCloudEvent;
 import org.springframework.context.annotation.Bean;
@@ -24,8 +25,8 @@ public class PackagePackedEventConsumer {
     public Consumer<PackagePackedCloudEvent> packagePacked() {
         return event -> {
             metricsService.kafkaEventsConsumed.increment(); // Increment metric
-            OrderId orderId = new OrderId(event.getOrderId());
-            shipmentApplicationService.createShipment(orderId);
+            CreateShipmentCommand command = new CreateShipmentCommand(event.getPackageId(), event.getOrderId());
+            shipmentApplicationService.createShipment(command);
         };
     }
 }

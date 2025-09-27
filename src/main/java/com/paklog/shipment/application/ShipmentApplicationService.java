@@ -1,5 +1,7 @@
 package com.paklog.shipment.application;
 
+import com.paklog.shipment.application.command.CreateShipmentCommand;
+import com.paklog.shipment.application.exception.ShipmentNotFoundException;
 import com.paklog.shipment.domain.*;
 import com.paklog.shipment.domain.repository.ShipmentRepository;
 import org.springframework.stereotype.Service;
@@ -21,8 +23,8 @@ public class ShipmentApplicationService {
         this.metricsService = metricsService;
     }
 
-    public void createShipment(OrderId orderId) {
-        Shipment newShipment = new Shipment(ShipmentId.generate(), orderId);
+    public Shipment createShipment(CreateShipmentCommand command) {
+        Shipment newShipment = new Shipment(ShipmentId.generate(), command.getOrderId());
         // In a real system, carrier selection would happen here
         newShipment.setCarrierName(CarrierName.FEDEX);
         newShipment.assignTrackingNumber(new TrackingNumber("trk-mock-12345"));
@@ -31,6 +33,17 @@ public class ShipmentApplicationService {
         metricsService.shipmentsCreated.increment(); // Increment metric
 
         loadApplicationService.addShipmentToLoad(UNASSIGNED_LOAD_ID, newShipment.getId());
+        return newShipment;
+    }
+
+    public Shipment getShipmentTracking(String trackingNumber) {
+        // This is a simplified implementation. In a real system, you'd have a proper tracking number index
+        List<Shipment> allShipments = shipmentRepository.findAll();
+        return allShipments.stream()
+                .filter(shipment -> shipment.getTrackingNumber() != null &&
+                       shipment.getTrackingNumber().getValue().equals(trackingNumber))
+                .findFirst()
+                .orElseThrow(() -> new ShipmentNotFoundException("Shipment not found with tracking number: " + trackingNumber));
     }
 
     public void updateShipmentTracking(ShipmentId shipmentId, List<TrackingEvent> newEvents) {

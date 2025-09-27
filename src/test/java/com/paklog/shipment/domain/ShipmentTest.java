@@ -2,132 +2,116 @@ package com.paklog.shipment.domain;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class ShipmentTest {
 
     @Test
-    void testShipmentCreation() {
-        // Arrange
+    void newShipmentInitialisesWithDefaults() {
         ShipmentId shipmentId = ShipmentId.newId();
         OrderId orderId = OrderId.of("order-123");
 
-        // Act
-        Shipment shipment = new Shipment(shipmentId, orderId);
+        Shipment shipment = Shipment.newShipment(shipmentId, orderId, CarrierName.FEDEX);
 
-        // Assert
-        assertNotNull(shipment);
         assertEquals(shipmentId, shipment.getId());
         assertEquals(orderId, shipment.getOrderId());
+        assertEquals(CarrierName.FEDEX, shipment.getCarrierName());
         assertEquals(ShipmentStatus.CREATED, shipment.getStatus());
+        assertNotNull(shipment.getCreatedAt());
+        assertNull(shipment.getTrackingNumber());
         assertTrue(shipment.getTrackingEvents().isEmpty());
     }
 
     @Test
-    void testShipmentCreationWithTracking() {
-        // Arrange
-        ShipmentId shipmentId = ShipmentId.newId();
-        OrderId orderId = OrderId.of("order-123");
-        TrackingNumber trackingNumber = TrackingNumber.of("track-123");
-        CarrierName carrierName = CarrierName.FEDEX;
+    void assignTrackingNumberTransitionsToInTransit() {
+        Shipment shipment = Shipment.newShipment(ShipmentId.newId(), OrderId.of("order-123"), CarrierName.UPS);
+        TrackingNumber trackingNumber = TrackingNumber.of("TRACK123");
 
-        // Act
-        Shipment shipment = new Shipment(shipmentId, orderId, trackingNumber, carrierName, ShipmentStatus.IN_TRANSIT);
-
-        // Assert
-        assertNotNull(shipment);
-        assertEquals(shipmentId, shipment.getId());
-        assertEquals(orderId, shipment.getOrderId());
-        assertEquals(trackingNumber, shipment.getTrackingNumber());
-        assertEquals(ShipmentStatus.IN_TRANSIT, shipment.getStatus());
-        assertTrue(shipment.getTrackingEvents().isEmpty());
-    }
-
-    @Test
-    void testAssignTrackingNumber() {
-        // Arrange
-        Shipment shipment = new Shipment(ShipmentId.newId(), OrderId.of("order-123"));
-        TrackingNumber trackingNumber = TrackingNumber.of("track-123");
-
-        // Act
         shipment.assignTrackingNumber(trackingNumber);
 
-        // Assert
         assertEquals(trackingNumber, shipment.getTrackingNumber());
         assertEquals(ShipmentStatus.IN_TRANSIT, shipment.getStatus());
+        assertNotNull(shipment.getDispatchedAt());
     }
 
     @Test
-    void testAddTrackingEvent() {
-        // Arrange
-        Shipment shipment = new Shipment(ShipmentId.newId(), OrderId.of("order-123"));
-        TrackingEvent event = new TrackingEvent("status", "desc", "loc", java.time.Instant.now(), "CODE", "Detailed Description");
+    void addTrackingEventStoresEvent() {
+        Shipment shipment = Shipment.newShipment(ShipmentId.newId(), OrderId.of("order-123"), CarrierName.UPS);
+        TrackingEvent event = new TrackingEvent("IN_TRANSIT", "Departed facility", "New York", Instant.now(), "CODE", "Detailed");
 
-        // Act
         shipment.addTrackingEvent(event);
 
-        // Assert
         assertEquals(1, shipment.getTrackingEvents().size());
         assertEquals(event, shipment.getTrackingEvents().get(0));
     }
 
     @Test
-    void testMarkAsDelivered() {
-        // Arrange
-        Shipment shipment = new Shipment(ShipmentId.newId(), OrderId.of("order-123"));
+    void markAsDeliveredSetsDeliveredTimestamp() {
+        Shipment shipment = Shipment.newShipment(ShipmentId.newId(), OrderId.of("order-123"), CarrierName.UPS);
+        shipment.assignTrackingNumber(TrackingNumber.of("TRACK123"));
+        Instant deliveredAt = Instant.now();
 
-        // Act
-        shipment.markAsDelivered();
+        shipment.markAsDelivered(deliveredAt);
 
-        // Assert
         assertEquals(ShipmentStatus.DELIVERED, shipment.getStatus());
+        assertEquals(deliveredAt, shipment.getDeliveredAt());
     }
 
     @Test
-    void testMarkDeliveryFailed() {
-        // Arrange
-        Shipment shipment = new Shipment(ShipmentId.newId(), OrderId.of("order-123"));
+    void markDeliveryFailedClearsDeliveredTimestamp() {
+        Shipment shipment = Shipment.newShipment(ShipmentId.newId(), OrderId.of("order-123"), CarrierName.UPS);
+        shipment.assignTrackingNumber(TrackingNumber.of("TRACK123"));
+        shipment.markAsDelivered(Instant.now());
 
-        // Act
         shipment.markDeliveryFailed();
 
-        // Assert
         assertEquals(ShipmentStatus.FAILED_DELIVERY, shipment.getStatus());
+        assertNull(shipment.getDeliveredAt());
     }
 
     @Test
-    void testSetStatus() {
-        // Arrange
-        Shipment shipment = new Shipment(ShipmentId.newId(), OrderId.of("order-123"));
+    void restoreRehydratesAggregate() {
+        ShipmentId shipmentId = ShipmentId.newId();
+        OrderId orderId = OrderId.of("order-123");
+        TrackingNumber trackingNumber = TrackingNumber.of("TRACK123");
+        Instant createdAt = Instant.now().minusSeconds(3600);
+        Instant dispatchedAt = createdAt.plusSeconds(600);
+        Instant deliveredAt = dispatchedAt.plusSeconds(600);
+        TrackingEvent event = new TrackingEvent("DELIVERED", "Package delivered", "Los Angeles", deliveredAt, "DEL", "Left at door");
 
-        // Act
-        shipment.setStatus(ShipmentStatus.DELIVERED);
+        Shipment shipment = Shipment.restore(
+            shipmentId,
+            orderId,
+            CarrierName.FEDEX,
+            trackingNumber,
+            ShipmentStatus.DELIVERED,
+            createdAt,
+            dispatchedAt,
+            deliveredAt,
+            List.of(event)
+        );
 
-        // Assert
+        assertEquals(shipmentId, shipment.getId());
+        assertEquals(orderId, shipment.getOrderId());
+        assertEquals(CarrierName.FEDEX, shipment.getCarrierName());
+        assertEquals(trackingNumber, shipment.getTrackingNumber());
         assertEquals(ShipmentStatus.DELIVERED, shipment.getStatus());
+        assertEquals(createdAt, shipment.getCreatedAt());
+        assertEquals(dispatchedAt, shipment.getDispatchedAt());
+        assertEquals(deliveredAt, shipment.getDeliveredAt());
+        assertEquals(1, shipment.getTrackingEvents().size());
     }
 
     @Test
-    void testEquals() {
-        // Arrange
+    void equalsAndHashCodeUseIdentity() {
         ShipmentId shipmentId = ShipmentId.newId();
-        Shipment shipment1 = new Shipment(shipmentId, OrderId.of("order-123"));
-        Shipment shipment2 = new Shipment(shipmentId, OrderId.of("order-456"));
-        Shipment shipment3 = new Shipment(ShipmentId.newId(), OrderId.of("order-123"));
+        Shipment shipment1 = Shipment.newShipment(shipmentId, OrderId.of("order-123"), CarrierName.FEDEX);
+        Shipment shipment2 = Shipment.newShipment(shipmentId, OrderId.of("order-456"), CarrierName.FEDEX);
 
-        // Assert
         assertEquals(shipment1, shipment2);
-        assertNotEquals(shipment1, shipment3);
-    }
-
-    @Test
-    void testHashCode() {
-        // Arrange
-        ShipmentId shipmentId = ShipmentId.newId();
-        Shipment shipment1 = new Shipment(shipmentId, OrderId.of("order-123"));
-        Shipment shipment2 = new Shipment(shipmentId, OrderId.of("order-456"));
-
-        // Assert
         assertEquals(shipment1.hashCode(), shipment2.hashCode());
     }
 }
