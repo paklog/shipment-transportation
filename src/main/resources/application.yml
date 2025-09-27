@@ -11,8 +11,6 @@ spring:
 
   kafka:
     bootstrap-servers: localhost:9092
-    properties:
-      schema.registry.url: http://localhost:8081
     consumer:
       group-id: shipment-group
       auto-offset-reset: earliest
@@ -81,5 +79,3 @@ spring:
 
   kafka:
     bootstrap-servers: localhost:9092
-    properties:
-      schema.registry.url: http://localhost:8081
