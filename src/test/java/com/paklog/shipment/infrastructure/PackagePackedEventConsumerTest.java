@@ -5,6 +5,7 @@ import com.paklog.shipment.application.ShipmentApplicationService;
 import com.paklog.shipment.application.command.CreateShipmentCommand;
 import com.paklog.shipment.domain.events.PackagePackedCloudEvent;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import io.micrometer.observation.ObservationRegistry;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,7 +33,11 @@ class PackagePackedEventConsumerTest {
     @BeforeEach
     void setUp() {
         metricsService = new MetricsService(new SimpleMeterRegistry());
-        packagePackedEventConsumer = new PackagePackedEventConsumer(shipmentApplicationService, metricsService);
+        packagePackedEventConsumer = new PackagePackedEventConsumer(
+                shipmentApplicationService,
+                metricsService,
+                ObservationRegistry.create()
+        );
         mockEvent = new PackagePackedCloudEvent("pkg-123", "ord-456", java.time.Instant.now());
     }
 

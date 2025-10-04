@@ -33,11 +33,12 @@ class ShipmentTest {
         TrackingNumber trackingNumber = TrackingNumber.of("TRACK123");
         Instant dispatchTime = Instant.parse("2024-01-01T01:00:00Z");
 
-        shipment.dispatch(trackingNumber, dispatchTime);
+        shipment.dispatch(trackingNumber, "label".getBytes(), dispatchTime);
 
         assertEquals(trackingNumber, shipment.getTrackingNumber());
         assertEquals(ShipmentStatus.DISPATCHED, shipment.getStatus());
         assertEquals(dispatchTime, shipment.getDispatchedAt());
+        assertArrayEquals("label".getBytes(), shipment.getLabelData());
     }
 
     @Test
@@ -53,7 +54,7 @@ class ShipmentTest {
     @Test
     void addTrackingEventAppendsChronologicallyAndMovesToInTransit() {
         Shipment shipment = Shipment.create(ORDER_ID, CARRIER, Instant.parse("2024-01-01T00:00:00Z"));
-        shipment.dispatch(TrackingNumber.of("TRACK123"), Instant.parse("2024-01-01T01:00:00Z"));
+        shipment.dispatch(TrackingNumber.of("TRACK123"), "label".getBytes(), Instant.parse("2024-01-01T01:00:00Z"));
 
         TrackingEvent firstEvent = new TrackingEvent("IN_TRANSIT", "Departed facility", "New York",
                 Instant.parse("2024-01-01T02:00:00Z"), "CODE", "Detailed");
@@ -70,7 +71,7 @@ class ShipmentTest {
     @Test
     void addTrackingEventRejectsNonChronologicalTimestamps() {
         Shipment shipment = Shipment.create(ORDER_ID, CARRIER, Instant.parse("2024-01-01T00:00:00Z"));
-        shipment.dispatch(TrackingNumber.of("TRACK123"), Instant.parse("2024-01-01T01:00:00Z"));
+        shipment.dispatch(TrackingNumber.of("TRACK123"), "label".getBytes(), Instant.parse("2024-01-01T01:00:00Z"));
 
         TrackingEvent firstEvent = new TrackingEvent("IN_TRANSIT", "Departed", "New York",
                 Instant.parse("2024-01-01T02:00:00Z"), "CODE", "Details");
@@ -87,7 +88,7 @@ class ShipmentTest {
     @Test
     void markAsDeliveredRecordsDeliveryEventAndTimestamp() {
         Shipment shipment = Shipment.create(ORDER_ID, CARRIER, Instant.parse("2024-01-01T00:00:00Z"));
-        shipment.dispatch(TrackingNumber.of("TRACK123"), Instant.parse("2024-01-01T01:00:00Z"));
+        shipment.dispatch(TrackingNumber.of("TRACK123"), "label".getBytes(), Instant.parse("2024-01-01T01:00:00Z"));
 
         TrackingEvent deliveryEvent = new TrackingEvent("DELIVERED", "Package delivered", "Los Angeles",
                 Instant.parse("2024-01-02T10:00:00Z"), "DEL", "Left at door");
@@ -102,7 +103,7 @@ class ShipmentTest {
     @Test
     void markDeliveryFailedTransitionsState() {
         Shipment shipment = Shipment.create(ORDER_ID, CARRIER, Instant.parse("2024-01-01T00:00:00Z"));
-        shipment.dispatch(TrackingNumber.of("TRACK123"), Instant.parse("2024-01-01T01:00:00Z"));
+        shipment.dispatch(TrackingNumber.of("TRACK123"), "label".getBytes(), Instant.parse("2024-01-01T01:00:00Z"));
 
         TrackingEvent failureEvent = new TrackingEvent("FAILED_DELIVERY", "Customer unavailable", "Los Angeles",
                 Instant.parse("2024-01-02T10:00:00Z"), "FAIL", "Left notice");
@@ -129,6 +130,7 @@ class ShipmentTest {
                 ORDER_ID,
                 CARRIER,
                 trackingNumber,
+                "label".getBytes(),
                 ShipmentStatus.DELIVERED,
                 createdAt,
                 dispatchedAt,
@@ -144,6 +146,7 @@ class ShipmentTest {
         assertEquals(createdAt, shipment.getCreatedAt());
         assertEquals(dispatchedAt, shipment.getDispatchedAt());
         assertEquals(deliveredAt, shipment.getDeliveredAt());
+        assertArrayEquals("label".getBytes(), shipment.getLabelData());
         assertEquals(List.of(event), shipment.getTrackingEvents());
     }
 }

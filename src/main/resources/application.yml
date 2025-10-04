@@ -19,6 +19,10 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    template:
+      observation-enabled: true
+    listener:
+      observation-enabled: true
 
   cloud:
     function:
@@ -26,12 +30,12 @@ spring:
     stream:
       bindings:
         packagePacked-in-0:
-          destination: package-packed
+          destination: fulfillment.warehouse.v1.events
           group: shipment-group
         shipmentDispatched-out:
-          destination: shipment-dispatched
+          destination: fulfillment.shipment.v1.events
         shipmentDelivered-out:
-          destination: shipment-delivered
+          destination: fulfillment.shipment.v1.events
 
   main:
     banner-mode: off
@@ -47,6 +51,21 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+  tracing:
+    sampling:
+      probability: ${OTEL_TRACES_SAMPLING_RATE:1.0}
+    propagation:
+      type: w3c
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+    metrics:
+      export:
+        enabled: true
+        url: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:http://localhost:4318/v1/metrics}
+        step: 10s
+        resource-attributes:
+          service.name: ${spring.application.name}
 
 springdoc:
   api-docs:
@@ -58,10 +77,10 @@ shipment:
   events:
     dispatched:
       type: com.paklog.shipment.dispatched.v1
-      topic: shipment-dispatched
+      topic: fulfillment.shipment.v1.events
     delivered:
       type: com.paklog.shipment.delivered.v1
-      topic: shipment-delivered
+      topic: fulfillment.shipment.v1.events
 
 outbox:
   max-attempts: 5

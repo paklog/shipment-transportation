@@ -38,15 +38,21 @@ cd shipment-transportation
 
 2. **Start infrastructure services**
 ```bash
-docker-compose up -d mongodb kafka wiremock
+docker-compose up -d mongodb kafka
 ```
 
-3. **Run the application**
+3. **Export OpenTelemetry endpoints (optional)**
+```bash
+export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:4318/v1/traces
+export OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=http://localhost:4318/v1/metrics
+```
+
+4. **Run the application**
 ```bash
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
-4. **Verify the service is running**
+5. **Verify the service is running**
 ```bash
 curl http://localhost:8080/api/management/health
 ```
@@ -158,12 +164,12 @@ This service participates in the event-driven architecture by:
 
 ### Consuming Events
 
-**PackagePacked Event** (from Warehouse Service):
+**PackagePacked Event** (from Warehouse Service, topic `fulfillment.warehouse.v1.events`):
 ```json
 {
   "specversion": "1.0",
-  "type": "com.example.fulfillment.warehouse.package.packed",
-  "source": "/fulfillment/warehouse-service",
+  "type": "com.paklog.fulfillment.warehouse.package.packed",
+  "source": "urn:paklog:warehouse",
   "id": "550e8400-e29b-41d4-a716-446655440000",
   "time": "2023-12-01T10:30:00Z",
   "datacontenttype": "application/json",
@@ -192,8 +198,8 @@ This service participates in the event-driven architecture by:
 ```json
 {
   "specversion": "1.0",
-  "type": "com.example.fulfillment.shipment.dispatched",
-  "source": "/fulfillment/shipment-transport-service",
+  "type": "com.paklog.shipment.dispatched.v1",
+  "source": "urn:paklog:shipment-transportation/shipment",
   "subject": "550e8400-e29b-41d4-a716-446655440001",
   "id": "660e8400-e29b-41d4-a716-446655440001",
   "time": "2023-12-01T11:00:00Z",
@@ -212,8 +218,8 @@ This service participates in the event-driven architecture by:
 ```json
 {
   "specversion": "1.0",
-  "type": "com.example.fulfillment.shipment.delivered",
-  "source": "/fulfillment/shipment-transport-service",
+  "type": "com.paklog.shipment.delivered.v1",
+  "source": "urn:paklog:shipment-transportation/shipment",
   "subject": "550e8400-e29b-41d4-a716-446655440001",
   "id": "770e8400-e29b-41d4-a716-446655440001",
   "time": "2023-12-03T14:30:00Z",
@@ -259,32 +265,24 @@ Integration tests use TestContainers for:
 
 ## 📊 Monitoring & Observability
 
-### Metrics Endpoints
+### Metrics & Traces
 
 - **Health**: `/api/management/health`
 - **Metrics**: `/api/management/metrics`
-- **Prometheus**: `/api/management/prometheus`
+- **Prometheus scrape**: `/api/management/prometheus`
 - **Info**: `/api/management/info`
 
-### Custom Health Indicators
+Key Micrometer meters:
 
-- **Carriers**: Checks connectivity to shipping carrier APIs
-- **Outbox**: Monitors unpublished events in outbox pattern
-- **MongoDB**: Database connectivity and performance
-- **Kafka**: Message broker connectivity
+| Meter | Description |
+|-------|-------------|
+| `shipments.created` | Counter of shipments created via PackagePacked flow |
+| `loads.tendered` / `loads.booked` | Counters for carrier tender/booking outcomes |
+| `carrier.api.calls` | Counter tagged by carrier/operation/status |
+| `carrier.api.latency` | Timer histogram for carrier API calls |
+| `tracking.jobs.succeeded` / `tracking.jobs.failed` | Scheduled job success/error counts |
 
-### Key Metrics to Monitor
-
-```bash
-# Application metrics
-curl http://localhost:8080/api/management/metrics/shipment.created.total
-curl http://localhost:8080/api/management/metrics/carrier.selection.duration
-curl http://localhost:8080/api/management/metrics/outbox.events.pending
-
-# JVM metrics
-curl http://localhost:8080/api/management/metrics/jvm.memory.used
-curl http://localhost:8080/api/management/metrics/jvm.gc.pause
-```
+Traces are exported via OTLP (HTTP) whenever `OTEL_EXPORTER_OTLP_*` variables are supplied. Kafka consumers/producers, outbox publishing, and scheduled jobs are wrapped in Spring Observability `Observation`s, producing spans and structured JSON logs with `traceId`/`spanId` enriched automatically.
 
 ## 🔧 Configuration
 
@@ -299,6 +297,8 @@ curl http://localhost:8080/api/management/metrics/jvm.gc.pause
 | `FEDEX_ACCOUNT_NUMBER` | FedEx account number | Required |
 | `TRACKING_JOB_ENABLED` | Enable background tracking job | `true` |
 | `TRACKING_JOB_INTERVAL` | Tracking job interval (ms) | `3600000` (1 hour) |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | OTLP traces endpoint URL | `http://localhost:4318/v1/traces` |
+| `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | OTLP metrics endpoint URL | `http://localhost:4318/v1/metrics` |
 
 ### Profiles
 
@@ -463,9 +463,9 @@ Major architectural decisions are documented in `/docs/adr/`:
 ## 📚 Additional Resources
 
 - [Architecture Guide](ARCHITECTURE.md) - Detailed architectural overview
-- [Domain Implementation Guide](DOMAIN_IMPLEMENTATION_GUIDE.md) - Domain layer patterns
-- [Testing Guide](TESTING_GUIDE.md) - Testing strategies and examples
-- [Configuration Guide](CONFIGURATION_DEPLOYMENT_GUIDE.md) - Setup and deployment
+- [Domain Implementation Guide](docs/DOMAIN_IMPLEMENTATION_GUIDE.md) - Domain layer patterns
+- [Testing Guide](docs/TESTING_GUIDE.md) - Testing strategies and examples
+- [Configuration Guide](docs/CONFIGURATION_DEPLOYMENT_GUIDE.md) - Setup and deployment
 - [OpenAPI Specification](openapi.yaml) - REST API contract
 - [AsyncAPI Specification](asyncapi.yaml) - Event contracts
 

@@ -10,6 +10,11 @@ services:
       - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/shipment_transport
       # Kafka configuration for Spring Cloud Stream
       - SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS=kafka:9092
+      - SPRING_PROFILES_ACTIVE=docker
+      # Point directly to your OpenTelemetry gateway/collector (external)
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-http://host.docker.internal:4318/v1/traces}
+      - OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:-http://host.docker.internal:4318/v1/metrics}
+      - OTEL_TRACES_SAMPLING_RATE=${OTEL_TRACES_SAMPLING_RATE:-1.0}
     depends_on:
       - mongodb
       - kafka

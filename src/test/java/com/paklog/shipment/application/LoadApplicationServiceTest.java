@@ -160,6 +160,7 @@ class LoadApplicationServiceTest {
                 OrderId.of("order-1"),
                 CarrierName.FEDEX,
                 TrackingNumber.of("trk-assign"),
+                "label".getBytes(),
                 ShipmentStatus.DISPATCHED,
                 Instant.parse("2024-01-01T00:00:00Z"),
                 Instant.parse("2024-01-01T01:00:00Z"),

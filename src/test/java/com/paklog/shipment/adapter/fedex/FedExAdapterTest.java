@@ -1,6 +1,7 @@
 package com.paklog.shipment.adapter.fedex;
 
 import com.paklog.shipment.application.MetricsService;
+import com.paklog.shipment.domain.CarrierInfo;
 import com.paklog.shipment.domain.Load;
 import com.paklog.shipment.domain.LoadId;
 import com.paklog.shipment.domain.Package;
@@ -31,12 +32,15 @@ class FedExAdapterTest {
 
     @Test
     void createShipmentReturnsTrackingNumber() {
-        Package pkg = new Package(2.0, 5.0, 5.0, 5.0, "BOX");
+        Package pkg = new Package("pkg-1", 2.0, 5.0, 5.0, 5.0, "BOX");
 
-        String tracking = fedExAdapter.createShipment(pkg);
+        CarrierInfo carrierInfo = fedExAdapter.createShipment(pkg, OrderId.of("ord-1"), pkg.getPackageId());
 
-        assertNotNull(tracking);
-        assertTrue(tracking.startsWith("trk-"));
+        assertNotNull(carrierInfo);
+        assertTrue(carrierInfo.getTrackingNumber().startsWith("dummy-tracking-number"));
+        assertNotNull(carrierInfo.getLabelData());
+        assertTrue(carrierInfo.getLabelData().length > 0);
+        assertEquals(fedExAdapter.getCarrierName(), carrierInfo.getCarrierName());
     }
 
     @Test
@@ -55,6 +59,7 @@ class FedExAdapterTest {
                 OrderId.of("order"),
                 fedExAdapter.getCarrierName(),
                 TrackingNumber.of("trk-123"),
+                "label".getBytes(),
                 ShipmentStatus.DISPATCHED,
                 Instant.now(),
                 Instant.now(),

@@ -14,7 +14,8 @@ public class FedExApiClient {
         if (request.getPackageId().equals("fail-auth")) {
             throw new FedExAuthenticationException("Simulated FedEx authentication failure");
         }
-        return new FedExShipmentResponse("dummy-tracking-number-" + request.getPackageId(), new byte[0]);
+        byte[] labelBytes = ("LABEL-" + request.getPackageId()).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        return new FedExShipmentResponse("dummy-tracking-number-" + request.getPackageId(), labelBytes);
     }
 
     public FedExTrackingResponse getTrackingStatus(FedExTrackingRequest request) {

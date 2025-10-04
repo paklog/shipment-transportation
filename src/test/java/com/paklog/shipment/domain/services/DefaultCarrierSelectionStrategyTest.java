@@ -13,25 +13,25 @@ class DefaultCarrierSelectionStrategyTest {
 
     @Test
     void selectsFedExForLightPackages() {
-        CarrierName carrier = strategy.selectCarrier(new Package(4.5, 10, 10, 10, "BOX"));
+        CarrierName carrier = strategy.selectCarrier(new Package("pkg-1", 4.5, 10, 10, 10, "BOX"));
         assertEquals(CarrierName.FEDEX, carrier);
     }
 
     @Test
     void selectsUpsForHeavyPackages() {
-        CarrierName carrier = strategy.selectCarrier(new Package(6.0, 10, 10, 10, "BOX"));
+        CarrierName carrier = strategy.selectCarrier(new Package("pkg-2", 6.0, 10, 10, 10, "BOX"));
         assertEquals(CarrierName.UPS, carrier);
     }
 
     @Test
     void treatsZeroWeightAsLight() {
-        CarrierName carrier = strategy.selectCarrier(new Package(0.0, 10, 10, 10, "BOX"));
+        CarrierName carrier = strategy.selectCarrier(new Package("pkg-3", 0.0, 10, 10, 10, "BOX"));
         assertEquals(CarrierName.FEDEX, carrier);
     }
 
     @Test
     void rejectsNegativeWeight() {
-        assertThrows(IllegalArgumentException.class, () -> strategy.selectCarrier(new Package(-1.0, 10, 10, 10, "BOX")));
+        assertThrows(IllegalArgumentException.class, () -> strategy.selectCarrier(new Package("pkg-4", -1.0, 10, 10, 10, "BOX")));
     }
 
     @Test

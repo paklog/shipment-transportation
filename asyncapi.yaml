@@ -13,25 +13,20 @@ servers:
     protocol: kafka
     description: Default Kafka bootstrap server used by the service during local development.
 channels:
-  package-packed:
+  fulfillment.warehouse.v1.events:
     description: Upstream warehouse events consumed to trigger shipment creation.
     subscribe:
       summary: Consume package packed notifications.
       operationId: consumePackagePacked
       message:
         $ref: '#/components/messages/PackagePackedEvent'
-  '{eventType}':
-    description: Dynamic Kafka topic derived from the outbox event type.
-    parameters:
-      eventType:
-        description: Event type persisted in the outbox (for example `shipment-dispatched`).
-        schema:
-          type: string
+  fulfillment.shipment.v1.events:
+    description: Shipment lifecycle events emitted by the transportation service.
     publish:
-      summary: Publish serialized outbox events.
-      operationId: publishOutboxEvent
+      summary: Publish CloudEvents representing shipment lifecycle changes.
+      operationId: publishShipmentDomainEvent
       message:
-        $ref: '#/components/messages/OutboxEventMessage'
+        $ref: '#/components/messages/ShipmentLifecycleEvent'
 components:
   messages:
     PackagePackedEvent:
@@ -39,11 +34,11 @@ components:
       title: Package Packed
       payload:
         $ref: '#/components/schemas/PackagePackedPayload'
-    OutboxEventMessage:
-      name: outboxEvent
-      title: Outbox Event
+    ShipmentLifecycleEvent:
+      name: shipmentLifecycle
+      title: Shipment Lifecycle Event
       payload:
-        $ref: '#/components/schemas/OutboxEventPayload'
+        $ref: '#/components/schemas/ShipmentCloudEvent'
   schemas:
     PackagePackedPayload:
       type: object
@@ -57,15 +52,51 @@ components:
           type: string
           format: date-time
       required: [packageId, orderId, packedAt]
-    OutboxEventPayload:
+    ShipmentCloudEvent:
+      description: CloudEvent envelope containing shipment lifecycle data.
       type: object
       properties:
-        aggregateType:
+        specversion:
           type: string
-        eventType:
+          enum: ["1.0"]
+        type:
           type: string
-        payload:
-          description: JSON payload produced by the aggregate.
+          enum:
+            - com.paklog.shipment.dispatched.v1
+            - com.paklog.shipment.delivered.v1
+        source:
+          type: string
+          example: urn:paklog:shipment-transportation/shipment
+        subject:
+          type: string
+          description: Shipment identifier (UUID string).
+        id:
+          type: string
+          description: CloudEvent identifier.
+        time:
+          type: string
+          format: date-time
+        datacontenttype:
+          type: string
+          enum: ["application/json"]
+        traceparent:
+          type: string
+          description: W3C traceparent used for distributed tracing.
+        data:
           type: object
-          additionalProperties: true
-      required: [aggregateType, eventType, payload]
+          description: Payload containing shipment fields.
+          properties:
+            shipment_id:
+              type: string
+            order_id:
+              type: string
+            carrier_name:
+              type: string
+            tracking_number:
+              type: string
+            dispatched_at:
+              type: string
+              format: date-time
+            delivered_at:
+              type: string
+              format: date-time

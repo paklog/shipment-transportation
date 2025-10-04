@@ -5,6 +5,7 @@ import com.paklog.shipment.application.command.CreateShipmentCommand;
 import com.paklog.shipment.application.exception.ShipmentCreationException;
 import com.paklog.shipment.application.exception.ShipmentNotFoundException;
 import com.paklog.shipment.application.port.ShipmentEventPublisher;
+import com.paklog.shipment.domain.CarrierInfo;
 import com.paklog.shipment.domain.CarrierName;
 import com.paklog.shipment.domain.LoadId;
 import com.paklog.shipment.domain.Package;
@@ -68,12 +69,12 @@ public class ShipmentApplicationService {
         ICarrierAdapter carrierAdapter = resolveCarrierAdapter(carrier);
 
         try {
-            String trackingValue = carrierAdapter.createShipment(packageDetails);
-            TrackingNumber trackingNumber = TrackingNumber.of(trackingValue);
+            CarrierInfo carrierInfo = carrierAdapter.createShipment(packageDetails, command.getOrderId(), command.getPackageId());
+            TrackingNumber trackingNumber = TrackingNumber.of(carrierInfo.getTrackingNumber());
             Instant now = Instant.now();
 
             Shipment shipment = Shipment.create(command.getOrderId(), carrier, now);
-            shipment.dispatch(trackingNumber, now);
+            shipment.dispatch(trackingNumber, carrierInfo.getLabelData(), now);
 
             Shipment persisted = shipmentRepository.save(shipment);
             metricsService.shipmentsCreated.increment();
@@ -86,9 +87,9 @@ public class ShipmentApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public Shipment getShipmentTracking(String trackingNumber) {
-        return shipmentRepository.findByTrackingNumber(TrackingNumber.of(trackingNumber))
-                .orElseThrow(() -> new ShipmentNotFoundException("Shipment not found with tracking number: " + trackingNumber));
+    public Shipment getShipmentTracking(ShipmentId shipmentId) {
+        return shipmentRepository.findById(shipmentId)
+                .orElseThrow(() -> new ShipmentNotFoundException("Shipment not found: " + shipmentId));
     }
 
     @Transactional

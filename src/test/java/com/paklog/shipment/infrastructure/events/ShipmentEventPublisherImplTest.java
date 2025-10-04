@@ -36,9 +36,9 @@ class ShipmentEventPublisherImplTest {
     void setUp() {
         ShipmentEventProperties properties = new ShipmentEventProperties();
         properties.getDispatched().setType("com.paklog.shipment.dispatched.v1");
-        properties.getDispatched().setTopic("shipment-dispatched");
+        properties.getDispatched().setTopic("fulfillment.shipment.v1.events");
         properties.getDelivered().setType("com.paklog.shipment.delivered.v1");
-        properties.getDelivered().setTopic("shipment-delivered");
+        properties.getDelivered().setTopic("fulfillment.shipment.v1.events");
 
         publisher = new ShipmentEventPublisherImpl(outboxService, new ObjectMapper(), properties);
         when(outboxService.save(any())).thenAnswer(invocation -> new OutboxEvent(invocation.getArgument(0)));
@@ -57,7 +57,7 @@ class ShipmentEventPublisherImplTest {
         assertEquals(shipment.getId().toString(), event.getAggregateId());
         assertEquals("Shipment", event.getAggregateType());
         assertEquals("com.paklog.shipment.dispatched.v1", event.getEventType());
-        assertEquals("shipment-dispatched", event.getDestination());
+        assertEquals("fulfillment.shipment.v1.events", event.getDestination());
     }
 
     @Test
@@ -71,13 +71,13 @@ class ShipmentEventPublisherImplTest {
         SimpleDomainEvent event = captor.getValue();
 
         assertEquals("com.paklog.shipment.delivered.v1", event.getEventType());
-        assertEquals("shipment-delivered", event.getDestination());
+        assertEquals("fulfillment.shipment.v1.events", event.getDestination());
     }
 
     private Shipment dispatchedShipment() {
         Shipment shipment = Shipment.create(OrderId.of("order-123"), CarrierName.FEDEX,
                 Instant.parse("2024-01-01T00:00:00Z"));
-        shipment.dispatch(TrackingNumber.of("trk-123"), Instant.parse("2024-01-01T01:00:00Z"));
+        shipment.dispatch(TrackingNumber.of("trk-123"), "label".getBytes(), Instant.parse("2024-01-01T01:00:00Z"));
         return shipment;
     }
 

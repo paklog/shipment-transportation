@@ -4,6 +4,7 @@ import com.paklog.shipment.application.ShipmentApplicationService;
 import com.paklog.shipment.application.command.CreateShipmentCommand;
 import com.paklog.shipment.infrastructure.api.dto.CreateShipmentRequest;
 import com.paklog.shipment.infrastructure.api.dto.ShipmentResponse;
+import com.paklog.shipment.domain.ShipmentId;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -33,8 +34,8 @@ public class ShipmentController {
             .body(ShipmentResponseMapper.toResponse(shipmentService.createShipment(command)));
     }
 
-    @GetMapping("/tracking/{trackingNumber}")
-    public ResponseEntity<ShipmentResponse> trackShipment(@PathVariable String trackingNumber) {
-        return ResponseEntity.ok(ShipmentResponseMapper.toResponse(shipmentService.getShipmentTracking(trackingNumber)));
+    @GetMapping("/{shipmentId}/tracking")
+    public ResponseEntity<ShipmentResponse> trackShipment(@PathVariable String shipmentId) {
+        return ResponseEntity.ok(ShipmentResponseMapper.toResponse(shipmentService.getShipmentTracking(ShipmentId.of(shipmentId))));
     }
 }

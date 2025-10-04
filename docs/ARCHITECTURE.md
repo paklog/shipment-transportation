@@ -259,18 +259,24 @@ public class FedExAdapter implements ICarrierAdapter {
     private final CarrierConfigurationProperties config;
     
     @Override
-    public CarrierInfo createShipment(Package packageInfo) {
+    public CarrierInfo createShipment(Package packageInfo,
+                                      OrderId orderId,
+                                      String packageId) {
+        Timer.Sample sample = metricsService.startCarrierApiTimer();
+        String status = "success";
         try {
-            FedExShipmentRequest request = buildShipmentRequest(packageInfo);
+            FedExShipmentRequest request = new FedExShipmentRequest(packageId, orderId.getValue());
             FedExShipmentResponse response = fedExApiClient.createShipment(request);
-            
             return new CarrierInfo(
-                new TrackingNumber(response.trackingNumber()),
-                response.labelData(),
+                response.getTrackingNumber(),
+                response.getLabelData(),
                 CarrierName.FEDEX
             );
         } catch (FedExApiException e) {
-            throw new CarrierException("Failed to create FedEx shipment", e);
+            status = "error";
+            throw new CarrierException("Failed to create FedEx shipment", CarrierName.FEDEX.name(), e.getErrorCode(), e);
+        } finally {
+            metricsService.recordCarrierApiCall(sample, "FedEx", "createShipment", status);
         }
     }
     
@@ -286,26 +292,37 @@ public class FedExAdapter implements ICarrierAdapter {
 #### CloudEvents Integration
 ```java
 @Component
-public class CloudEventFactory {
-    
-    public CloudEvent createShipmentDispatchedEvent(Shipment shipment) {
-        ShipmentDispatchedData data = new ShipmentDispatchedData(
-            shipment.shipmentId(),
-            shipment.orderId(),
-            shipment.carrierName(),
-            shipment.trackingNumber(),
-            shipment.dispatchedAt()
-        );
-        
-        return CloudEventBuilder.v1()
-            .withId(UUID.randomUUID().toString())
-            .withType("com.example.fulfillment.shipment.dispatched")
-            .withSource(URI.create("/fulfillment/shipment-transport-service"))
-            .withSubject(shipment.shipmentId().toString())
-            .withTime(OffsetDateTime.now())
-            .withDataContentType("application/json")
-            .withData(objectMapper.writeValueAsBytes(data))
-            .build();
+public class CloudEventSerializer {
+
+    private final ObjectMapper objectMapper;
+
+    public CloudEventSerializer(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper.copy().registerModule(JsonFormat.getCloudEventJacksonModule());
+    }
+
+    public String serializeShipmentEvent(Shipment shipment,
+                                         String eventType,
+                                         String payload,
+                                         TraceContext traceContext) {
+        CloudEventBuilder builder = CloudEventBuilder.v1()
+                .withId(UUID.randomUUID().toString())
+                .withSource(URI.create("urn:paklog:shipment-transportation/shipment"))
+                .withSubject(shipment.getId().toString())
+                .withType(eventType)
+                .withTime(OffsetDateTime.now())
+                .withDataContentType("application/json")
+                .withData(payload.getBytes(StandardCharsets.UTF_8));
+
+        if (traceContext != null) {
+            builder.withExtension("traceparent", String.format("00-%s-%s-%s",
+                    traceContext.traceId(), traceContext.spanId(), traceContext.sampled() ? "01" : "00"));
+        }
+
+        try {
+            return objectMapper.writeValueAsString(builder.build());
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialise CloudEvent", e);
+        }
     }
 }
 ```

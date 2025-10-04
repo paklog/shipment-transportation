@@ -12,9 +12,9 @@ public class ExternalPackageServiceImpl implements ExternalPackageService {
         // Simulate an external API call or database lookup
         // In a real application, this would involve HTTP clients, database queries, etc.
         if (packageId.equals("pkg-123")) {
-            return new Package(5.0, 20.0, 15.0, 10.0, "BOX");
+            return new Package(packageId, 5.0, 20.0, 15.0, 10.0, "BOX");
         } else if (packageId.equals("pkg-456")) {
-            return new Package(1.0, 5.0, 5.0, 2.0, "ENVELOPE");
+            return new Package(packageId, 1.0, 5.0, 5.0, 2.0, "ENVELOPE");
         } else {
             throw new RuntimeException("Package not found: " + packageId);
         }

@@ -5,6 +5,7 @@ import com.paklog.shipment.application.command.CreateShipmentCommand;
 import com.paklog.shipment.application.exception.ShipmentCreationException;
 import com.paklog.shipment.application.exception.ShipmentNotFoundException;
 import com.paklog.shipment.application.port.ShipmentEventPublisher;
+import com.paklog.shipment.domain.CarrierInfo;
 import com.paklog.shipment.domain.CarrierName;
 import com.paklog.shipment.domain.LoadId;
 import com.paklog.shipment.domain.OrderId;
@@ -75,20 +76,22 @@ class ShipmentApplicationServiceTest {
 
     @Test
     void createShipmentDispatchesAndPersists() {
-        Package packageDetails = new Package(5.0, 10.0, 10.0, 10.0, "BOX");
+        Package packageDetails = new Package(PACKAGE_ID, 5.0, 10.0, 10.0, 10.0, "BOX");
         when(packageRetrievalService.getPackageDetails(PACKAGE_ID)).thenReturn(packageDetails);
         when(carrierSelectionService.selectBestCarrier(packageDetails)).thenReturn(CarrierName.FEDEX);
-        when(carrierAdapter.createShipment(packageDetails)).thenReturn("trk-123");
+        when(carrierAdapter.createShipment(packageDetails, OrderId.of(ORDER_ID), PACKAGE_ID))
+                .thenReturn(new CarrierInfo("trk-123", "label-data".getBytes(), CarrierName.FEDEX));
         when(shipmentRepository.save(any(Shipment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         Shipment result = shipmentService.createShipment(new CreateShipmentCommand(PACKAGE_ID, ORDER_ID));
 
         assertNotNull(result.getId());
         assertEquals("trk-123", result.getTrackingNumber().getValue());
+        assertArrayEquals("label-data".getBytes(), result.getLabelData());
         assertEquals(1.0, metricsService.shipmentsCreated.count());
         verify(loadApplicationService).addShipmentToLoad(eq(UNASSIGNED_LOAD_ID), eq(result.getId()));
         verify(shipmentEventPublisher).shipmentDispatched(result);
-        verify(carrierAdapter).createShipment(packageDetails);
+        verify(carrierAdapter).createShipment(packageDetails, OrderId.of(ORDER_ID), PACKAGE_ID);
         verify(shipmentRepository).save(result);
     }
 
@@ -99,6 +102,7 @@ class ShipmentApplicationServiceTest {
                 OrderId.of(ORDER_ID),
                 CarrierName.FEDEX,
                 TrackingNumber.of("trk-existing"),
+                "label".getBytes(),
                 ShipmentStatus.DISPATCHED,
                 Instant.now(),
                 Instant.now(),
@@ -118,7 +122,7 @@ class ShipmentApplicationServiceTest {
 
     @Test
     void createShipmentThrowsWhenAdapterMissing() {
-        Package packageDetails = new Package(5.0, 10.0, 10.0, 10.0, "BOX");
+        Package packageDetails = new Package(PACKAGE_ID, 5.0, 10.0, 10.0, 10.0, "BOX");
         when(packageRetrievalService.getPackageDetails(PACKAGE_ID)).thenReturn(packageDetails);
         when(carrierSelectionService.selectBestCarrier(packageDetails)).thenReturn(CarrierName.UPS);
 
@@ -128,10 +132,11 @@ class ShipmentApplicationServiceTest {
 
     @Test
     void createShipmentWrapsCarrierExceptions() {
-        Package packageDetails = new Package(5.0, 10.0, 10.0, 10.0, "BOX");
+        Package packageDetails = new Package(PACKAGE_ID, 5.0, 10.0, 10.0, 10.0, "BOX");
         when(packageRetrievalService.getPackageDetails(PACKAGE_ID)).thenReturn(packageDetails);
         when(carrierSelectionService.selectBestCarrier(packageDetails)).thenReturn(CarrierName.FEDEX);
-        when(carrierAdapter.createShipment(packageDetails)).thenThrow(new CarrierException("Carrier down", "FEDEX"));
+        when(carrierAdapter.createShipment(packageDetails, OrderId.of(ORDER_ID), PACKAGE_ID))
+                .thenThrow(new CarrierException("Carrier down", "FEDEX"));
 
         assertThrows(ShipmentCreationException.class,
                 () -> shipmentService.createShipment(new CreateShipmentCommand(PACKAGE_ID, ORDER_ID)));
@@ -140,32 +145,21 @@ class ShipmentApplicationServiceTest {
 
     @Test
     void getShipmentTrackingReturnsShipment() {
-        TrackingNumber trackingNumber = TrackingNumber.of("trk-123");
-        Shipment shipment = Shipment.restore(
-                ShipmentId.generate(),
-                OrderId.of(ORDER_ID),
-                CarrierName.FEDEX,
-                trackingNumber,
-                ShipmentStatus.DISPATCHED,
-                Instant.now(),
-                Instant.now(),
-                null,
-                List.of()
-        );
-        when(shipmentRepository.findByTrackingNumber(trackingNumber)).thenReturn(Optional.of(shipment));
+        Shipment shipment = createDispatchedShipment();
+        when(shipmentRepository.findById(shipment.getId())).thenReturn(Optional.of(shipment));
 
-        Shipment result = shipmentService.getShipmentTracking(trackingNumber.getValue());
+        Shipment result = shipmentService.getShipmentTracking(shipment.getId());
 
         assertEquals(shipment, result);
     }
 
     @Test
     void getShipmentTrackingThrowsWhenMissing() {
-        TrackingNumber trackingNumber = TrackingNumber.of("trk-123");
-        when(shipmentRepository.findByTrackingNumber(trackingNumber)).thenReturn(Optional.empty());
+        ShipmentId missingId = ShipmentId.generate();
+        when(shipmentRepository.findById(missingId)).thenReturn(Optional.empty());
 
         assertThrows(ShipmentNotFoundException.class,
-                () -> shipmentService.getShipmentTracking(trackingNumber.getValue()));
+                () -> shipmentService.getShipmentTracking(missingId));
     }
 
     @Test
@@ -204,7 +198,7 @@ class ShipmentApplicationServiceTest {
     private Shipment createDispatchedShipment() {
         Shipment shipment = Shipment.create(OrderId.of(ORDER_ID), CarrierName.FEDEX,
                 Instant.parse("2024-01-01T00:00:00Z"));
-        shipment.dispatch(TrackingNumber.of("trk-123"), Instant.parse("2024-01-01T01:00:00Z"));
+        shipment.dispatch(TrackingNumber.of("trk-123"), "label".getBytes(), Instant.parse("2024-01-01T01:00:00Z"));
         return shipment;
     }
 }

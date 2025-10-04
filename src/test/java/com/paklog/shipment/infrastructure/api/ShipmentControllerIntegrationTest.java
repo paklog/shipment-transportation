@@ -51,6 +51,7 @@ class ShipmentControllerIntegrationTest {
                 OrderId.of(orderId),
                 CarrierName.FEDEX,
                 TrackingNumber.of("TRK123"),
+                "label".getBytes(),
                 ShipmentStatus.DISPATCHED,
                 Instant.now(),
                 Instant.now(),
@@ -71,24 +72,25 @@ class ShipmentControllerIntegrationTest {
     @Test
     void testGetShipmentTracking() throws Exception {
         // Arrange
-        String trackingNumber = "TRK123";
+        ShipmentId shipmentId = ShipmentId.generate();
         Shipment mockShipment = Shipment.restore(
-                ShipmentId.generate(),
+                shipmentId,
                 OrderId.of("ord-test-2"),
                 CarrierName.UPS,
-                TrackingNumber.of(trackingNumber),
+                TrackingNumber.of("TRK123"),
+                "label".getBytes(),
                 ShipmentStatus.DISPATCHED,
                 Instant.now(),
                 Instant.now(),
                 null,
                 List.of()
         );
-        when(shipmentService.getShipmentTracking(trackingNumber)).thenReturn(mockShipment);
+        when(shipmentService.getShipmentTracking(shipmentId)).thenReturn(mockShipment);
 
         // Act & Assert
-        mockMvc.perform(get("/shipments/tracking/{trackingNumber}", trackingNumber))
+        mockMvc.perform(get("/shipments/{shipmentId}/tracking", shipmentId.getValue()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.trackingNumber").value(trackingNumber))
+                .andExpect(jsonPath("$.trackingNumber").value("TRK123"))
                 .andExpect(jsonPath("$.trackingHistory").isArray());
     }
 
@@ -106,10 +108,10 @@ class ShipmentControllerIntegrationTest {
 
     @Test
     void testGetShipmentTracking_NotFoundMappedTo404() throws Exception {
-        String trackingNumber = "missing";
-        when(shipmentService.getShipmentTracking(trackingNumber)).thenThrow(new ShipmentNotFoundException("Shipment not found"));
+        ShipmentId missingId = ShipmentId.generate();
+        when(shipmentService.getShipmentTracking(missingId)).thenThrow(new ShipmentNotFoundException("Shipment not found"));
 
-        mockMvc.perform(get("/shipments/tracking/{trackingNumber}", trackingNumber))
+        mockMvc.perform(get("/shipments/{shipmentId}/tracking", missingId.getValue()))
             .andExpect(status().isNotFound())
             .andExpect(jsonPath("$.code").value("shipment_not_found"));
     }

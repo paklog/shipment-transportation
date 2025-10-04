@@ -608,7 +608,9 @@ public interface ICarrierAdapter {
     /**
      * Creates a shipment with the carrier and returns carrier info
      */
-    CarrierInfo createShipment(Package packageInfo) throws CarrierException;
+    CarrierInfo createShipment(Package packageInfo,
+                               OrderId orderId,
+                               String packageId) throws CarrierException;
     
     /**
      * Gets the latest tracking status for a shipment
@@ -631,21 +633,37 @@ public interface ICarrierAdapter {
 
 ```java
 // CarrierInfo (Task 19)
-package com.example.shipment.domain.model.valueobject;
+package com.paklog.shipment.domain;
 
-public record CarrierInfo(
-    TrackingNumber trackingNumber,
-    byte[] labelData,
-    CarrierName carrierName
-) {
-    public CarrierInfo {
-        Objects.requireNonNull(trackingNumber, "Tracking number cannot be null");
-        Objects.requireNonNull(labelData, "Label data cannot be null");
-        Objects.requireNonNull(carrierName, "Carrier name cannot be null");
-        
+import java.util.Objects;
+
+public class CarrierInfo {
+    private final String trackingNumber;
+    private final byte[] labelData;
+    private final CarrierName carrierName;
+
+    public CarrierInfo(String trackingNumber, byte[] labelData, CarrierName carrierName) {
+        this.trackingNumber = Objects.requireNonNull(trackingNumber);
+        this.labelData = Objects.requireNonNull(labelData);
+        this.carrierName = Objects.requireNonNull(carrierName);
+        if (trackingNumber.isBlank()) {
+            throw new IllegalArgumentException("Tracking number cannot be blank");
+        }
         if (labelData.length == 0) {
             throw new IllegalArgumentException("Label data cannot be empty");
         }
+    }
+
+    public String getTrackingNumber() {
+        return trackingNumber;
+    }
+
+    public byte[] getLabelData() {
+        return labelData.clone();
+    }
+
+    public CarrierName getCarrierName() {
+        return carrierName;
     }
 }
 

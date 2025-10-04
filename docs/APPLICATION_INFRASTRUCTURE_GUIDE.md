@@ -299,33 +299,32 @@ import java.util.List;
 @Component
 public class FedExAdapter implements ICarrierAdapter {
     private final FedExApiClient fedExApiClient;
-    private final FedExRequestMapper requestMapper;
-    private final FedExResponseMapper responseMapper;
-    
-    public FedExAdapter(
-            FedExApiClient fedExApiClient,
-            FedExRequestMapper requestMapper,
-            FedExResponseMapper responseMapper) {
+    private final MetricsService metricsService;
+
+    public FedExAdapter(FedExApiClient fedExApiClient, MetricsService metricsService) {
         this.fedExApiClient = fedExApiClient;
-        this.requestMapper = requestMapper;
-        this.responseMapper = responseMapper;
+        this.metricsService = metricsService;
     }
-    
+
     @Override
-    public CarrierInfo createShipment(Package packageInfo) throws CarrierException {
+    public CarrierInfo createShipment(Package packageInfo,
+                                      OrderId orderId,
+                                      String packageId) throws CarrierException {
+        Timer.Sample sample = metricsService.startCarrierApiTimer();
+        String status = "success";
         try {
-            FedExShipmentRequest request = requestMapper.toFedExShipmentRequest(packageInfo);
+            FedExShipmentRequest request = new FedExShipmentRequest(packageId, orderId.getValue());
             FedExShipmentResponse response = fedExApiClient.createShipment(request);
-            
-            return responseMapper.toCarrierInfo(response);
-            
-        } catch (FedExApiException e) {
-            throw new CarrierException(
-                "Failed to create FedEx shipment: " + e.getMessage(),
-                getCarrierName().getDisplayName(),
-                e.getErrorCode(),
-                e
+            return new CarrierInfo(
+                response.getTrackingNumber(),
+                response.getLabelData(),
+                CarrierName.FEDEX
             );
+        } catch (FedExApiException e) {
+            status = "error";
+            throw new CarrierException("Failed to create FedEx shipment", CarrierName.FEDEX.name(), e.getErrorCode(), e);
+        } finally {
+            metricsService.recordCarrierApiCall(sample, "FedEx", "createShipment", status);
         }
     }
     

@@ -16,6 +16,7 @@ public class Shipment {
 
     private ShipmentStatus status;
     private TrackingNumber trackingNumber;
+    private byte[] labelData;
     private Instant dispatchedAt;
     private Instant deliveredAt;
 
@@ -36,13 +37,18 @@ public class Shipment {
         return create(orderId, carrierName, Instant.now());
     }
 
-    public void dispatch(TrackingNumber trackingNumber, Instant dispatchedAt) {
+    public void dispatch(TrackingNumber trackingNumber, byte[] labelData, Instant dispatchedAt) {
         ensureStatus(ShipmentStatus.CREATED, "Shipment can only be dispatched from CREATED state");
         Objects.requireNonNull(trackingNumber, "Tracking number cannot be null when dispatching");
         if (this.trackingNumber != null) {
             throw new IllegalStateException("Shipment already has a tracking number");
         }
         this.trackingNumber = trackingNumber;
+        Objects.requireNonNull(labelData, "Label data cannot be null when dispatching");
+        if (labelData.length == 0) {
+            throw new IllegalArgumentException("Label data cannot be empty");
+        }
+        this.labelData = labelData.clone();
         this.dispatchedAt = Objects.requireNonNull(dispatchedAt, "dispatchedAt cannot be null");
         this.status = ShipmentStatus.DISPATCHED;
     }
@@ -111,6 +117,10 @@ public class Shipment {
         return dispatchedAt;
     }
 
+    public byte[] getLabelData() {
+        return labelData != null ? labelData.clone() : null;
+    }
+
     public Instant getDeliveredAt() {
         return deliveredAt;
     }
@@ -145,12 +155,13 @@ public class Shipment {
     }
 
     public static Shipment restore(ShipmentId id, OrderId orderId, CarrierName carrierName,
-                                   TrackingNumber trackingNumber, ShipmentStatus status,
+                                   TrackingNumber trackingNumber, byte[] labelData, ShipmentStatus status,
                                    Instant createdAt, Instant dispatchedAt, Instant deliveredAt,
                                    List<TrackingEvent> trackingEvents) {
         Shipment shipment = new Shipment(id, orderId, carrierName, createdAt);
         shipment.status = Objects.requireNonNull(status, "Shipment status cannot be null");
         shipment.trackingNumber = trackingNumber;
+        shipment.labelData = labelData != null ? labelData.clone() : null;
         shipment.dispatchedAt = dispatchedAt;
         shipment.deliveredAt = deliveredAt;
         shipment.trackingEvents.clear();

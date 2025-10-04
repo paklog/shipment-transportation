@@ -1,6 +1,7 @@
 package com.paklog.shipment.infrastructure.job;
 
 import com.paklog.shipment.adapter.ICarrierAdapter;
+import com.paklog.shipment.application.MetricsService;
 import com.paklog.shipment.application.ShipmentApplicationService;
 import com.paklog.shipment.config.TrackingJobProperties;
 import com.paklog.shipment.domain.CarrierName;
@@ -14,6 +15,7 @@ import com.paklog.shipment.domain.repository.ShipmentRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import io.micrometer.observation.ObservationRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,15 +38,20 @@ class TrackingJobServiceTest {
     @Mock
     private ICarrierAdapter carrierAdapter;
 
+    @Mock
+    private MetricsService metricsService;
+
     private TrackingJobService trackingJobService;
 
     private Shipment inTransitShipment;
+    private ObservationRegistry observationRegistry;
 
     @BeforeEach
     void setUp() {
+        observationRegistry = ObservationRegistry.create();
         inTransitShipment = Shipment.create(com.paklog.shipment.domain.OrderId.of("order-1"), CarrierName.FEDEX,
                 Instant.parse("2024-01-01T00:00:00Z"));
-        inTransitShipment.dispatch(TrackingNumber.of("trk-1"), Instant.parse("2024-01-01T01:00:00Z"));
+        inTransitShipment.dispatch(TrackingNumber.of("trk-1"), "label".getBytes(), Instant.parse("2024-01-01T01:00:00Z"));
 
         when(carrierAdapter.getCarrierName()).thenReturn(CarrierName.FEDEX);
         TrackingJobProperties properties = new TrackingJobProperties();
@@ -53,7 +60,9 @@ class TrackingJobServiceTest {
                 shipmentRepository,
                 shipmentApplicationService,
                 List.of(carrierAdapter),
-                properties
+                properties,
+                observationRegistry,
+                metricsService
         );
     }
 
@@ -104,7 +113,7 @@ class TrackingJobServiceTest {
     void ignoresShipmentsWithoutAdapters() {
         Shipment unknownCarrierShipment = Shipment.create(com.paklog.shipment.domain.OrderId.of("order-2"), CarrierName.UPS,
                 Instant.parse("2024-01-01T00:00:00Z"));
-        unknownCarrierShipment.dispatch(TrackingNumber.of("trk-2"), Instant.parse("2024-01-01T01:00:00Z"));
+        unknownCarrierShipment.dispatch(TrackingNumber.of("trk-2"), "label".getBytes(), Instant.parse("2024-01-01T01:00:00Z"));
 
         when(shipmentRepository.findPageInTransit(null, 1)).thenReturn(List.of(unknownCarrierShipment));
         when(shipmentRepository.findPageInTransit(unknownCarrierShipment.getId().toString(), 1)).thenReturn(List.of());

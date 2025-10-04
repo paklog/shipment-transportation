@@ -26,7 +26,7 @@ class CarrierSelectionServiceTest {
 
     @BeforeEach
     void setUp() {
-        mockPackage = new Package(10.0, 10.0, 10.0, 10.0, "BOX");
+        mockPackage = new Package("pkg-test", 10.0, 10.0, 10.0, 10.0, "BOX");
     }
 
     @Test

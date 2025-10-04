@@ -375,61 +375,84 @@ public class PackagePackedEventConsumer {
 
 ### ShipmentEventPublisher (Task 48)
 ```java
-package com.example.shipment.infrastructure.messaging.publisher;
+package com.paklog.shipment.infrastructure.events;
 
-import com.example.shipment.application.port.ShipmentEventPublisher;
-import com.example.shipment.domain.model.aggregate.Shipment;
-import com.example.shipment.infrastructure.messaging.factory.CloudEventFactory;
-import com.example.shipment.infrastructure.outbox.service.OutboxService;
-import io.cloudevents.CloudEvent;
+import com.paklog.shipment.application.port.ShipmentEventPublisher;
+import com.paklog.shipment.domain.Shipment;
+import com.paklog.shipment.infrastructure.OutboxService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 @Component
 public class ShipmentEventPublisherImpl implements ShipmentEventPublisher {
+
     private static final Logger logger = LoggerFactory.getLogger(ShipmentEventPublisherImpl.class);
-    
-    private final CloudEventFactory cloudEventFactory;
+
     private final OutboxService outboxService;
-    
-    public ShipmentEventPublisherImpl(CloudEventFactory cloudEventFactory, OutboxService outboxService) {
-        this.cloudEventFactory = cloudEventFactory;
+    private final CloudEventSerializer cloudEventSerializer;
+    private final ShipmentEventProperties shipmentEventProperties;
+
+    public ShipmentEventPublisherImpl(OutboxService outboxService,
+                                      ObjectMapper objectMapper,
+                                      ShipmentEventProperties shipmentEventProperties) {
         this.outboxService = outboxService;
+        this.cloudEventSerializer = new CloudEventSerializer(objectMapper);
+        this.shipmentEventProperties = shipmentEventProperties;
     }
-    
+
     @Override
-    public void publishShipmentDispatched(Shipment shipment) {
-        logger.info("Publishing ShipmentDispatched event for shipment: {}", shipment.getShipmentId());
-        
-        try {
-            CloudEvent event = cloudEventFactory.createShipmentDispatchedEvent(shipment);
-            outboxService.saveEvent(event);
-            
-            logger.debug("ShipmentDispatched event saved to outbox: {}", event.getId());
-            
-        } catch (Exception e) {
-            logger.error("Failed to publish ShipmentDispatched event for shipment: {}", 
-                shipment.getShipmentId(), e);
-            throw new RuntimeException("Failed to publish shipment dispatched event", e);
-        }
+    public void shipmentDispatched(Shipment shipment) {
+        String payload = createDispatchedPayload(shipment);
+        persist(shipment, shipmentEventProperties.getDispatched().getType(), payload);
     }
-    
+
     @Override
-    public void publishShipmentDelivered(Shipment shipment) {
-        logger.info("Publishing ShipmentDelivered event for shipment: {}", shipment.getShipmentId());
-        
-        try {
-            CloudEvent event = cloudEventFactory.createShipmentDeliveredEvent(shipment);
-            outboxService.saveEvent(event);
-            
-            logger.debug("ShipmentDelivered event saved to outbox: {}", event.getId());
-            
-        } catch (Exception e) {
-            logger.error("Failed to publish ShipmentDelivered event for shipment: {}", 
-                shipment.getShipmentId(), e);
-            throw new RuntimeException("Failed to publish shipment delivered event", e);
-        }
+    public void shipmentDelivered(Shipment shipment) {
+        String payload = createDeliveredPayload(shipment);
+        persist(shipment, shipmentEventProperties.getDelivered().getType(), payload);
+    }
+
+    private void persist(Shipment shipment, String type, String payload) {
+        String destination = type.equals(shipmentEventProperties.getDispatched().getType())
+                ? shipmentEventProperties.getDispatched().getTopic()
+                : shipmentEventProperties.getDelivered().getTopic();
+
+        String serialized = cloudEventSerializer.serialize(
+                shipment.getId().toString(),
+                shipment.getId().toString(),
+                "Shipment",
+                type,
+                payload,
+                null
+        );
+
+        outboxService.save(new SimpleDomainEvent(
+                shipment.getId().toString(),
+                "Shipment",
+                type,
+                destination,
+                serialized
+        ));
+        logger.debug("Queued {} event for shipment {}", type, shipment.getId());
+    }
+
+    private String createDispatchedPayload(Shipment shipment) {
+        return String.format("{\"shipment_id\":\"%s\",\"order_id\":\"%s\",\"carrier_name\":\"%s\",\"tracking_number\":\"%s\",\"dispatched_at\":\"%s\"}",
+                shipment.getId(),
+                shipment.getOrderId().getValue(),
+                shipment.getCarrierName().name(),
+                shipment.getTrackingNumber().getValue(),
+                shipment.getDispatchedAt());
+    }
+
+    private String createDeliveredPayload(Shipment shipment) {
+        return String.format("{\"shipment_id\":\"%s\",\"order_id\":\"%s\",\"carrier_name\":\"%s\",\"tracking_number\":\"%s\",\"delivered_at\":\"%s\"}",
+                shipment.getId(),
+                shipment.getOrderId().getValue(),
+                shipment.getCarrierName().name(),
+                shipment.getTrackingNumber().getValue(),
+                shipment.getDeliveredAt());
     }
 }
 ```

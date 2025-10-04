@@ -3,13 +3,18 @@ package com.paklog.shipment.infrastructure.events;
 import com.paklog.shipment.infrastructure.KafkaEventProducer;
 import com.paklog.shipment.infrastructure.OutboxEvent;
 import com.paklog.shipment.infrastructure.OutboxService;
+import io.micrometer.observation.ObservationRegistry;
+import io.micrometer.tracing.Tracer;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -21,18 +26,32 @@ class OutboxEventPublisherTest {
     @Mock
     private KafkaEventProducer kafkaEventProducer;
 
-    @InjectMocks
-    private OutboxEventPublisher outboxEventPublisher;
+    @Mock
+    private CloudEventSerializer cloudEventSerializer;
 
     @Mock
-    private CloudEventFactory cloudEventFactory;
+    private Tracer tracer;
+
+    private OutboxEventPublisher outboxEventPublisher;
+
+    @BeforeEach
+    void setUp() {
+        when(tracer.currentSpan()).thenReturn(null);
+        outboxEventPublisher = new OutboxEventPublisher(
+                outboxService,
+                cloudEventSerializer,
+                kafkaEventProducer,
+                ObservationRegistry.create(),
+                tracer
+        );
+    }
 
     @Test
     void publishesPendingEventsAndMarksProcessed() {
         OutboxEvent event = new OutboxEvent("agg-1", "Shipment", "type", "topic", "{}");
         event.setId("event-1");
         when(outboxService.getPendingEvents()).thenReturn(List.of(event));
-        when(cloudEventFactory.toCloudEventJson(event)).thenReturn("cloud-event-json");
+        when(cloudEventSerializer.serialize(any(), any(), any(), any(), any(), any())).thenReturn("cloud-event-json");
 
         outboxEventPublisher.processPendingEvents();
 
@@ -46,7 +65,7 @@ class OutboxEventPublisherTest {
         OutboxEvent event = new OutboxEvent("agg-1", "Shipment", "type", "topic", "{}");
         event.setId("event-1");
         when(outboxService.getPendingEvents()).thenReturn(List.of(event));
-        when(cloudEventFactory.toCloudEventJson(event)).thenReturn("cloud-event-json");
+        when(cloudEventSerializer.serialize(any(), any(), any(), any(), any(), any())).thenReturn("cloud-event-json");
         doThrow(new KafkaEventProducer.EventPublishingException("failure", new RuntimeException()))
                 .when(kafkaEventProducer).publishEvent(anyString(), anyString());
 
@@ -62,6 +81,6 @@ class OutboxEventPublisherTest {
 
         outboxEventPublisher.processPendingEvents();
 
-        verifyNoInteractions(cloudEventFactory, kafkaEventProducer);
+        verifyNoInteractions(cloudEventSerializer, kafkaEventProducer);
     }
 }

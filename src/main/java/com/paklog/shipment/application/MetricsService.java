@@ -3,9 +3,9 @@ package com.paklog.shipment.application;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Service;
-
-import java.util.concurrent.TimeUnit;
 
 @Service
 public class MetricsService {
@@ -19,8 +19,11 @@ public class MetricsService {
     public final Counter loadsBooked;
 
     // Infrastructure Metrics
-    private final Counter carrierApiCalls;
     public final Counter kafkaEventsConsumed;
+    public final Counter trackingJobsSucceeded;
+    public final Counter trackingJobsFailed;
+    private final Map<CarrierMetricKey, Counter> carrierApiCallCounters = new ConcurrentHashMap<>();
+    private final Map<CarrierMetricKey, Timer> carrierApiLatencyTimers = new ConcurrentHashMap<>();
 
     public MetricsService(MeterRegistry registry) {
         this.registry = registry;
@@ -42,22 +45,66 @@ public class MetricsService {
                 .register(registry);
 
         // Infrastructure Metrics
-        this.carrierApiCalls = Counter.builder("carrier.api.calls")
-                .description("Total calls to external carrier APIs")
-                .register(registry);
-
         this.kafkaEventsConsumed = Counter.builder("kafka.events.consumed")
                 .description("Total Kafka events consumed")
+                .register(registry);
+
+        this.trackingJobsSucceeded = Counter.builder("tracking.jobs.succeeded")
+                .description("Count of successful tracking job executions")
+                .register(registry);
+
+        this.trackingJobsFailed = Counter.builder("tracking.jobs.failed")
+                .description("Count of failed tracking job executions")
                 .register(registry);
     }
 
     public void incrementCarrierApiCalls(String carrier, String operation, String status) {
-        Counter.builder("carrier.api.calls")
-                .description("Total calls to external carrier APIs")
-                .tag("carrier", carrier)
-                .tag("operation", operation)
-                .tag("status", status)
-                .register(registry)
+        recordCarrierApiCall(null, carrier, operation, status);
+    }
+
+    public Timer.Sample startCarrierApiTimer() {
+        return Timer.start(registry);
+    }
+
+    public void recordCarrierApiCall(Timer.Sample sample, String carrier, String operation, String status) {
+        CarrierMetricKey key = new CarrierMetricKey(carrier, operation, status);
+        carrierApiCallCounters
+                .computeIfAbsent(key, this::buildCarrierApiCounter)
                 .increment();
+
+        if (sample != null) {
+            Timer timer = carrierApiLatencyTimers.computeIfAbsent(key, this::buildCarrierApiTimer);
+            sample.stop(timer);
+        }
+    }
+
+    public void markTrackingJobResult(boolean success) {
+        if (success) {
+            trackingJobsSucceeded.increment();
+        } else {
+            trackingJobsFailed.increment();
+        }
+    }
+
+    private Counter buildCarrierApiCounter(CarrierMetricKey key) {
+        return Counter.builder("carrier.api.calls")
+                .description("Total calls to external carrier APIs")
+                .tag("carrier", key.carrier)
+                .tag("operation", key.operation)
+                .tag("status", key.status)
+                .register(registry);
+    }
+
+    private Timer buildCarrierApiTimer(CarrierMetricKey key) {
+        return Timer.builder("carrier.api.latency")
+                .description("Latency of external carrier API calls")
+                .tag("carrier", key.carrier)
+                .tag("operation", key.operation)
+                .tag("status", key.status)
+                .publishPercentileHistogram()
+                .register(registry);
+    }
+
+    private record CarrierMetricKey(String carrier, String operation, String status) {
     }
 }

@@ -26,6 +26,7 @@ public class ShipmentDocument {
     private Instant dispatchedAt;
     private Instant deliveredAt;
     private List<TrackingEventDocument> trackingEvents;
+    private byte[] labelData;
 
     public static ShipmentDocument fromDomain(Shipment shipment) {
         ShipmentDocument doc = new ShipmentDocument();
@@ -37,6 +38,7 @@ public class ShipmentDocument {
         doc.setCreatedAt(shipment.getCreatedAt());
         doc.setDispatchedAt(shipment.getDispatchedAt());
         doc.setDeliveredAt(shipment.getDeliveredAt());
+        doc.setLabelData(shipment.getLabelData());
         doc.setTrackingEvents(shipment.getTrackingEvents().stream()
             .map(TrackingEventDocument::fromDomain)
             .collect(Collectors.toList()));
@@ -53,6 +55,7 @@ public class ShipmentDocument {
             OrderId.of(orderId),
             CarrierName.valueOf(carrierName),
             trackingNumber != null ? TrackingNumber.of(trackingNumber) : null,
+            labelData,
             ShipmentStatus.valueOf(status),
             createdAt,
             dispatchedAt,
@@ -131,5 +134,13 @@ public class ShipmentDocument {
 
     public void setTrackingEvents(List<TrackingEventDocument> trackingEvents) {
         this.trackingEvents = trackingEvents;
+    }
+
+    public byte[] getLabelData() {
+        return labelData;
+    }
+
+    public void setLabelData(byte[] labelData) {
+        this.labelData = labelData;
     }
 }

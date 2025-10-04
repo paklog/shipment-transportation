@@ -4,12 +4,12 @@ Use this index to navigate the Shipment & Transportation documentation. It group
 
 ## Core Guides
 
-- [ARCHITECTURE.md](../ARCHITECTURE.md) – End-to-end view of the service boundaries and key flows.
-- [DOMAIN_IMPLEMENTATION_GUIDE.md](../DOMAIN_IMPLEMENTATION_GUIDE.md) – Practical rules for modelling aggregates, entities, and value objects.
-- [APPLICATION_INFRASTRUCTURE_GUIDE.md](../APPLICATION_INFRASTRUCTURE_GUIDE.md) – Details on supporting services, messaging, and observability.
-- [CONFIGURATION_DEPLOYMENT_GUIDE.md](../CONFIGURATION_DEPLOYMENT_GUIDE.md) – Environment variables, secrets, and deployment pipeline notes.
-- [DOCKER_GUIDE.md](../DOCKER_GUIDE.md) – Local container workflows and troubleshooting tips.
-- [TESTING_GUIDE.md](../TESTING_GUIDE.md) – Strategy, tooling, and conventions for automated tests.
+- [ARCHITECTURE.md](ARCHITECTURE.md) – End-to-end view of the service boundaries and key flows.
+- [DOMAIN_IMPLEMENTATION_GUIDE.md](DOMAIN_IMPLEMENTATION_GUIDE.md) – Practical rules for modelling aggregates, entities, and value objects.
+- [APPLICATION_INFRASTRUCTURE_GUIDE.md](APPLICATION_INFRASTRUCTURE_GUIDE.md) – Details on supporting services, messaging, and observability.
+- [CONFIGURATION_DEPLOYMENT_GUIDE.md](CONFIGURATION_DEPLOYMENT_GUIDE.md) – Environment variables, secrets, and deployment pipeline notes.
+- [DOCKER_GUIDE.md](DOCKER_GUIDE.md) – Local container workflows and troubleshooting tips.
+- [TESTING_GUIDE.md](TESTING_GUIDE.md) – Strategy, tooling, and conventions for automated tests.
 
 ## Architecture Deep Dives
 

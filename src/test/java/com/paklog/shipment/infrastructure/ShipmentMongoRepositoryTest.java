@@ -20,6 +20,8 @@ import java.time.Instant;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -49,6 +51,7 @@ class ShipmentMongoRepositoryTest {
                 orderId,
                 CarrierName.FEDEX,
                 trackingNumber,
+                "label".getBytes(),
                 ShipmentStatus.DISPATCHED,
                 createdAt,
                 dispatchedAt,
@@ -70,6 +73,7 @@ class ShipmentMongoRepositoryTest {
         assertNotNull(savedShipment);
         assertEquals(mockShipment.getTrackingNumber(), savedShipment.getTrackingNumber());
         assertEquals(mockShipment.getCarrierName(), savedShipment.getCarrierName());
+        assertArrayEquals(mockShipment.getLabelData(), savedShipment.getLabelData());
         verify(mongoTemplate, times(1)).save(any(ShipmentDocument.class));
     }
 
