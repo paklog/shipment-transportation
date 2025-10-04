@@ -14,28 +14,28 @@ public class OutboxEvent {
     private String aggregateType;
     private String eventType;
     private String payload;
+    private String destination;
     private Instant createdAt;
+    private Instant lastAttemptAt;
+    private int attemptCount;
     private EventStatus status;
     private String errorMessage;
 
     public OutboxEvent() {}
 
     public OutboxEvent(DomainEvent event) {
-        this.aggregateId = event.getAggregateId();
-        this.aggregateType = event.getAggregateType();
-        this.eventType = event.getEventType();
-        this.payload = event.getPayload();
-        this.createdAt = Instant.now();
-        this.status = EventStatus.PENDING;
+        this(event.getAggregateId(), event.getAggregateType(), event.getEventType(), event.getDestination(), event.getPayload());
     }
 
-    public OutboxEvent(String aggregateId, String aggregateType, String eventType, String payload) {
+    public OutboxEvent(String aggregateId, String aggregateType, String eventType, String destination, String payload) {
         this.aggregateId = aggregateId;
         this.aggregateType = aggregateType;
         this.eventType = eventType;
+        this.destination = destination;
         this.payload = payload;
         this.createdAt = Instant.now();
         this.status = EventStatus.PENDING;
+        this.attemptCount = 0;
     }
 
     // Getters and Setters
@@ -51,13 +51,38 @@ public class OutboxEvent {
     public void setPayload(String payload) { this.payload = payload; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public String getDestination() { return destination; }
+    public void setDestination(String destination) { this.destination = destination; }
+    public Instant getLastAttemptAt() { return lastAttemptAt; }
+    public void setLastAttemptAt(Instant lastAttemptAt) { this.lastAttemptAt = lastAttemptAt; }
+    public int getAttemptCount() { return attemptCount; }
+    public void incrementAttemptCount() { this.attemptCount++; }
+    public void resetError() { this.errorMessage = null; }
     public EventStatus getStatus() { return status; }
     public void setStatus(EventStatus status) { this.status = status; }
     public String getErrorMessage() { return errorMessage; }
     public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
 
     public boolean isProcessed() { return status == EventStatus.PROCESSED; }
-    public void setProcessed(boolean processed) { this.status = processed ? EventStatus.PROCESSED : EventStatus.PENDING; }
+    public void markProcessed() {
+        this.status = EventStatus.PROCESSED;
+        this.lastAttemptAt = Instant.now();
+        incrementAttemptCount();
+        resetError();
+    }
+
+    public void markForRetry(String errorMessage) {
+        this.status = EventStatus.PENDING;
+        this.lastAttemptAt = Instant.now();
+        incrementAttemptCount();
+        this.errorMessage = errorMessage;
+    }
+
+    public void markFailed(String errorMessage) {
+        this.status = EventStatus.FAILED;
+        this.lastAttemptAt = Instant.now();
+        this.errorMessage = errorMessage;
+    }
 
     public enum EventStatus {
         PENDING,

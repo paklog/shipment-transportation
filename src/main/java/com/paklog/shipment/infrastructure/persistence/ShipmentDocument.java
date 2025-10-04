@@ -7,12 +7,16 @@ import com.paklog.shipment.domain.ShipmentId;
 import com.paklog.shipment.domain.ShipmentStatus;
 import com.paklog.shipment.domain.TrackingEvent;
 import com.paklog.shipment.domain.TrackingNumber;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Document(collection = "shipments")
 public class ShipmentDocument {
+    @Id
     private String id;
     private String orderId;
     private String carrierName;

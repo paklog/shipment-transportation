@@ -18,11 +18,30 @@ public class Load {
     private BigDecimal totalVolume;
 
     public Load(LoadId id) {
-        this.id = Objects.requireNonNull(id);
-        this.status = LoadStatus.OPEN;
-        this.shipmentIds = new ArrayList<>();
-        this.totalWeight = BigDecimal.ZERO;
-        this.totalVolume = BigDecimal.ZERO;
+        this(id, LoadStatus.OPEN, null, List.of(), BigDecimal.ZERO, BigDecimal.ZERO);
+    }
+
+    private Load(LoadId id,
+                 LoadStatus status,
+                 CarrierName carrierName,
+                 List<ShipmentId> shipmentIds,
+                 BigDecimal totalWeight,
+                 BigDecimal totalVolume) {
+        this.id = Objects.requireNonNull(id, "Load id cannot be null");
+        this.status = Objects.requireNonNull(status, "Load status cannot be null");
+        this.carrierName = carrierName;
+        this.shipmentIds = new ArrayList<>(Objects.requireNonNull(shipmentIds, "Shipment list cannot be null"));
+        this.totalWeight = totalWeight != null ? totalWeight : BigDecimal.ZERO;
+        this.totalVolume = totalVolume != null ? totalVolume : BigDecimal.ZERO;
+    }
+
+    public static Load restore(LoadId id,
+                               LoadStatus status,
+                               CarrierName carrierName,
+                               List<ShipmentId> shipmentIds,
+                               BigDecimal totalWeight,
+                               BigDecimal totalVolume) {
+        return new Load(id, status, carrierName, shipmentIds, totalWeight, totalVolume);
     }
 
     public void addShipment(Shipment shipment) {
@@ -43,7 +62,7 @@ public class Load {
         if (this.status != LoadStatus.OPEN) {
             throw new IllegalStateException("Cannot assign a carrier to a load that is not in OPEN state.");
         }
-        this.carrierName = carrierName;
+        this.carrierName = Objects.requireNonNull(carrierName, "Carrier name cannot be null");
     }
 
     public void book() {

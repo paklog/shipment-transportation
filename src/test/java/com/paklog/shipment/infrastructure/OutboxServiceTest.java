@@ -1,5 +1,6 @@
 package com.paklog.shipment.infrastructure;
 
+import com.paklog.shipment.config.OutboxProperties;
 import com.paklog.shipment.domain.DomainEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,25 +22,26 @@ class OutboxServiceTest {
     @Mock
     private OutboxEventRepository outboxEventRepository;
 
-    @Mock
-    private KafkaEventProducer kafkaEventProducer;
-
-    @InjectMocks
     private OutboxService outboxService;
+    private OutboxProperties outboxProperties;
 
     private DomainEvent mockDomainEvent;
     private OutboxEvent mockOutboxEvent;
 
     @BeforeEach
     void setUp() {
+        outboxProperties = new OutboxProperties();
         mockDomainEvent = mock(DomainEvent.class);
         when(mockDomainEvent.getAggregateId()).thenReturn("agg-1");
         when(mockDomainEvent.getAggregateType()).thenReturn("type-1");
         when(mockDomainEvent.getEventType()).thenReturn("event-1");
+        when(mockDomainEvent.getDestination()).thenReturn("topic-1");
         when(mockDomainEvent.getPayload()).thenReturn("{}");
 
         mockOutboxEvent = new OutboxEvent(mockDomainEvent);
         mockOutboxEvent.setId("outbox-1");
+
+        outboxService = new OutboxService(outboxEventRepository, outboxProperties);
     }
 
     @Test
@@ -60,7 +62,7 @@ class OutboxServiceTest {
     void testGetPendingEvents() {
         // Arrange
         List<OutboxEvent> pendingEvents = Arrays.asList(mockOutboxEvent);
-        when(outboxEventRepository.findByStatus(OutboxEvent.EventStatus.PENDING)).thenReturn(pendingEvents);
+        when(outboxEventRepository.findTop100ByStatusOrderByCreatedAtAsc(OutboxEvent.EventStatus.PENDING)).thenReturn(pendingEvents);
 
         // Act
         List<OutboxEvent> result = outboxService.getPendingEvents();
@@ -70,7 +72,7 @@ class OutboxServiceTest {
         assertFalse(result.isEmpty());
         assertEquals(1, result.size());
         assertEquals(mockOutboxEvent, result.get(0));
-        verify(outboxEventRepository, times(1)).findByStatus(OutboxEvent.EventStatus.PENDING);
+        verify(outboxEventRepository, times(1)).findTop100ByStatusOrderByCreatedAtAsc(OutboxEvent.EventStatus.PENDING);
     }
 
     @Test
@@ -84,6 +86,8 @@ class OutboxServiceTest {
 
         // Assert
         assertTrue(mockOutboxEvent.isProcessed());
+        assertEquals(1, mockOutboxEvent.getAttemptCount());
+        assertNotNull(mockOutboxEvent.getLastAttemptAt());
         verify(outboxEventRepository, times(1)).findById("outbox-1");
         verify(outboxEventRepository, times(1)).save(mockOutboxEvent);
     }
@@ -101,7 +105,26 @@ class OutboxServiceTest {
         // Assert
         assertFalse(mockOutboxEvent.isProcessed());
         assertEquals(errorMessage, mockOutboxEvent.getErrorMessage());
+        assertEquals(1, mockOutboxEvent.getAttemptCount());
+        assertNotNull(mockOutboxEvent.getLastAttemptAt());
         verify(outboxEventRepository, times(1)).findById("outbox-1");
         verify(outboxEventRepository, times(1)).save(mockOutboxEvent);
+    }
+
+    @Test
+    void testMarkEventAsFailedMarksFinalAfterMaxAttempts() {
+        outboxProperties.setMaxAttempts(3);
+        // Simulate two prior failures
+        mockOutboxEvent.markForRetry("prev1");
+        mockOutboxEvent.markForRetry("prev2");
+
+        when(outboxEventRepository.findById("outbox-1")).thenReturn(Optional.of(mockOutboxEvent));
+        when(outboxEventRepository.save(any(OutboxEvent.class))).thenReturn(mockOutboxEvent);
+
+        outboxService.markEventAsFailed("outbox-1", "final-error");
+
+        assertEquals(OutboxEvent.EventStatus.FAILED, mockOutboxEvent.getStatus());
+        assertEquals("final-error", mockOutboxEvent.getErrorMessage());
+        assertEquals(3, mockOutboxEvent.getAttemptCount());
     }
 }

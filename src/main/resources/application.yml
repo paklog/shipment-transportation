@@ -21,6 +21,8 @@ spring:
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
 
   cloud:
+    function:
+      definition: packagePacked
     stream:
       bindings:
         packagePacked-in-0:
@@ -35,7 +37,7 @@ spring:
     banner-mode: off
 
 server:
-  port: 8080
+  port: 8086
 
 management:
   endpoints:
@@ -47,6 +49,24 @@ management:
       application: ${spring.application.name}
 
 springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+shipment:
+  events:
+    dispatched:
+      type: com.paklog.shipment.dispatched.v1
+      topic: shipment-dispatched
+    delivered:
+      type: com.paklog.shipment.delivered.v1
+      topic: shipment-delivered
+
+outbox:
+  max-attempts: 5
+  publisher:
+    interval: 30000
 
 ---
 # Docker profile configuration

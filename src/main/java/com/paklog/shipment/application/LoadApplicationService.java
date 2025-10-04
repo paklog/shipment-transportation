@@ -17,7 +17,7 @@ public class LoadApplicationService {
 
     private final ILoadRepository loadRepository;
     private final ShipmentRepository shipmentRepository;
-    private final Map<String, ICarrierAdapter> carrierAdapters;
+    private final Map<CarrierName, ICarrierAdapter> carrierAdapters;
     private final MetricsService metricsService;
 
     public LoadApplicationService(ILoadRepository loadRepository, ShipmentRepository shipmentRepository, List<ICarrierAdapter> carrierAdapterList, MetricsService metricsService) {
@@ -25,7 +25,7 @@ public class LoadApplicationService {
         this.shipmentRepository = shipmentRepository;
         this.carrierAdapters = carrierAdapterList.stream()
                 .collect(Collectors.toMap(
-                        adapter -> adapter.getCarrierName().name(),
+                        ICarrierAdapter::getCarrierName,
                         Function.identity()
                 ));
         this.metricsService = metricsService;
@@ -60,7 +60,7 @@ public class LoadApplicationService {
             throw new IllegalStateException("Load must have a carrier assigned before it can be rated.");
         }
 
-        ICarrierAdapter carrierAdapter = carrierAdapters.get(load.getCarrierName().name());
+        ICarrierAdapter carrierAdapter = carrierAdapters.get(load.getCarrierName());
         if (carrierAdapter == null) {
             throw new IllegalStateException("No adapter found for carrier: " + load.getCarrierName());
         }
@@ -77,7 +77,7 @@ public class LoadApplicationService {
             throw new IllegalStateException("Load must have a carrier assigned before it can be tendered.");
         }
 
-        ICarrierAdapter carrierAdapter = carrierAdapters.get(load.getCarrierName().name());
+        ICarrierAdapter carrierAdapter = carrierAdapters.get(load.getCarrierName());
         if (carrierAdapter == null) {
             throw new IllegalStateException("No adapter found for carrier: " + load.getCarrierName());
         }
@@ -114,7 +114,7 @@ public class LoadApplicationService {
             throw new IllegalStateException("Can only schedule pickup for a BOOKED load.");
         }
 
-        ICarrierAdapter carrierAdapter = carrierAdapters.get(load.getCarrierName().name());
+        ICarrierAdapter carrierAdapter = carrierAdapters.get(load.getCarrierName());
         String confirmation = carrierAdapter.schedulePickup(load);
 
         // In a real system, you would save the confirmation to the Load aggregate

@@ -1,11 +1,14 @@
 package com.paklog.shipment.infrastructure.persistence.document;
 
+import com.paklog.shipment.domain.CarrierName;
 import com.paklog.shipment.domain.Load;
 import com.paklog.shipment.domain.LoadId;
 import com.paklog.shipment.domain.LoadStatus;
+import com.paklog.shipment.domain.ShipmentId;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -16,6 +19,9 @@ public class LoadDocument {
     private String id;
     private String status;
     private List<String> shipmentIds;
+    private String carrierName;
+    private BigDecimal totalWeight;
+    private BigDecimal totalVolume;
 
     public static LoadDocument fromDomain(Load load) {
         LoadDocument doc = new LoadDocument();
@@ -24,16 +30,27 @@ public class LoadDocument {
         doc.setShipmentIds(load.getShipmentIds().stream()
                 .map(Object::toString)
                 .collect(Collectors.toList()));
+        doc.setCarrierName(load.getCarrierName() != null ? load.getCarrierName().name() : null);
+        doc.setTotalWeight(load.getTotalWeight());
+        doc.setTotalVolume(load.getTotalVolume());
         return doc;
     }
 
-    // This is a simplified mapping. A real implementation would need to restore state more carefully.
     public Load toDomain() {
-        LoadId loadId = LoadId.of(this.id);
-        Load load = new Load(loadId);
-        // This is a simplification; a full implementation would need to restore
-        // the state of the aggregate, not just the ID.
-        return load;
+        List<ShipmentId> shipmentIdList = shipmentIds == null
+            ? List.of()
+            : shipmentIds.stream().map(ShipmentId::of).collect(Collectors.toList());
+
+        CarrierName carrier = carrierName != null ? CarrierName.valueOf(carrierName) : null;
+
+        return Load.restore(
+            LoadId.of(this.id),
+            LoadStatus.valueOf(this.status),
+            carrier,
+            shipmentIdList,
+            totalWeight,
+            totalVolume
+        );
     }
 
     // Getters and Setters
@@ -59,5 +76,29 @@ public class LoadDocument {
 
     public void setShipmentIds(List<String> shipmentIds) {
         this.shipmentIds = shipmentIds;
+    }
+
+    public String getCarrierName() {
+        return carrierName;
+    }
+
+    public void setCarrierName(String carrierName) {
+        this.carrierName = carrierName;
+    }
+
+    public BigDecimal getTotalWeight() {
+        return totalWeight;
+    }
+
+    public void setTotalWeight(BigDecimal totalWeight) {
+        this.totalWeight = totalWeight;
+    }
+
+    public BigDecimal getTotalVolume() {
+        return totalVolume;
+    }
+
+    public void setTotalVolume(BigDecimal totalVolume) {
+        this.totalVolume = totalVolume;
     }
 }

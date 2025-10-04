@@ -8,6 +8,7 @@ import com.paklog.shipment.domain.ShipmentStatus;
 import com.paklog.shipment.domain.TrackingNumber;
 import com.paklog.shipment.domain.repository.ShipmentRepository;
 import com.paklog.shipment.infrastructure.persistence.ShipmentDocument;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -46,8 +47,20 @@ public class ShipmentMongoRepository implements ShipmentRepository {
     }
 
     @Override
-    public List<Shipment> findAllInTransit() {
-        Query query = new Query(Criteria.where("status").is(ShipmentStatus.IN_TRANSIT.name()));
+    public Optional<Shipment> findByTrackingNumber(TrackingNumber trackingNumber) {
+        Query query = new Query(Criteria.where("trackingNumber").is(trackingNumber.getValue()));
+        ShipmentDocument doc = mongoTemplate.findOne(query, ShipmentDocument.class);
+        return Optional.ofNullable(doc).map(ShipmentDocument::toDomain);
+    }
+
+    @Override
+    public List<Shipment> findPageInTransit(String lastSeenId, int limit) {
+        Query query = new Query(Criteria.where("status").is(ShipmentStatus.IN_TRANSIT.name()))
+                .limit(limit)
+                .with(Sort.by(Sort.Direction.ASC, "id"));
+        if (lastSeenId != null) {
+            query.addCriteria(Criteria.where("id").gt(lastSeenId));
+        }
         List<ShipmentDocument> docs = mongoTemplate.find(query, ShipmentDocument.class);
         return docs.stream().map(ShipmentDocument::toDomain).collect(Collectors.toList());
     }

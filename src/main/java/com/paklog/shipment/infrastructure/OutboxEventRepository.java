@@ -7,5 +7,5 @@ import java.util.List;
 
 @Repository
 public interface OutboxEventRepository extends MongoRepository<OutboxEvent, String> {
-    List<OutboxEvent> findByStatus(OutboxEvent.EventStatus status);
+    List<OutboxEvent> findTop100ByStatusOrderByCreatedAtAsc(OutboxEvent.EventStatus status);
 }

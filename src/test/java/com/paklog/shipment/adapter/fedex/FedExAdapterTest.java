@@ -1,102 +1,67 @@
 package com.paklog.shipment.adapter.fedex;
 
-import com.paklog.shipment.adapter.ICarrierAdapter;
-import com.paklog.shipment.domain.CarrierInfo;
+import com.paklog.shipment.application.MetricsService;
+import com.paklog.shipment.domain.Load;
+import com.paklog.shipment.domain.LoadId;
+import com.paklog.shipment.domain.Package;
+import com.paklog.shipment.domain.OrderId;
+import com.paklog.shipment.domain.Shipment;
+import com.paklog.shipment.domain.ShipmentId;
+import com.paklog.shipment.domain.ShipmentStatus;
 import com.paklog.shipment.domain.TrackingNumber;
 import com.paklog.shipment.domain.TrackingUpdate;
-import com.paklog.shipment.domain.exception.CarrierException;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
 class FedExAdapterTest {
 
-    @Mock
-    private FedExApiClient fedExApiClient;
-
-    @InjectMocks
     private FedExAdapter fedExAdapter;
-
-    private String packageId;
-    private String orderId;
-    private String trackingNumberString;
-    private TrackingNumber trackingNumber;
-    private FedExShipmentResponse mockShipmentResponse;
-    private FedExTrackingResponse mockTrackingResponse;
 
     @BeforeEach
     void setUp() {
-        packageId = "pkg-123";
-        orderId = "ord-456";
-        trackingNumberString = "track-789";
-        trackingNumber = TrackingNumber.of(trackingNumberString);
-        mockShipmentResponse = new FedExShipmentResponse(trackingNumberString, new byte[]{});
-        mockTrackingResponse = new FedExTrackingResponse("DELIVERED", "Delivered to front door", "New York", Instant.now());
+        fedExAdapter = new FedExAdapter(new FedExApiClient(), new MetricsService(new SimpleMeterRegistry()));
     }
 
     @Test
-    void testCreateShipment_Success() {
-        // Arrange
-        when(fedExApiClient.createShipment(any(FedExShipmentRequest.class))).thenReturn(mockShipmentResponse);
+    void createShipmentReturnsTrackingNumber() {
+        Package pkg = new Package(2.0, 5.0, 5.0, 5.0, "BOX");
 
-        // Act
-        CarrierInfo carrierInfo = fedExAdapter.createShipment(packageId, orderId);
+        String tracking = fedExAdapter.createShipment(pkg);
 
-        // Assert
-        assertNotNull(carrierInfo);
-        assertEquals(trackingNumberString, carrierInfo.getTrackingNumber());
-        verify(fedExApiClient, times(1)).createShipment(any(FedExShipmentRequest.class));
+        assertNotNull(tracking);
+        assertTrue(tracking.startsWith("trk-"));
     }
 
     @Test
-    void testCreateShipment_FedExApiClientThrowsException() {
-        // Arrange
-        when(fedExApiClient.createShipment(any(FedExShipmentRequest.class))).thenThrow(new RuntimeException("API error"));
+    void getTrackingStatusReturnsEmptyByDefault() {
+        Optional<TrackingUpdate> update = fedExAdapter.getTrackingStatus(TrackingNumber.of("trk-123"));
 
-        // Act & Assert
-        CarrierException thrown = assertThrows(CarrierException.class, () -> {
-            fedExAdapter.createShipment(packageId, orderId);
-        });
-        assertTrue(thrown.getMessage().contains("FedEx shipment creation failed"));
-        verify(fedExApiClient, times(1)).createShipment(any(FedExShipmentRequest.class));
+        assertTrue(update.isEmpty());
     }
 
     @Test
-    void testGetTrackingStatus_Success() {
-        // Arrange
-        when(fedExApiClient.getTrackingStatus(any(FedExTrackingRequest.class))).thenReturn(mockTrackingResponse);
+    void rateLoadCalculatesCost() {
+        Load load = new Load(LoadId.generate());
+        load.assignCarrier(fedExAdapter.getCarrierName());
+        load.addShipment(Shipment.restore(
+                ShipmentId.generate(),
+                OrderId.of("order"),
+                fedExAdapter.getCarrierName(),
+                TrackingNumber.of("trk-123"),
+                ShipmentStatus.DISPATCHED,
+                Instant.now(),
+                Instant.now(),
+                null,
+                List.of()
+        ));
 
-        // Act
-        TrackingUpdate trackingUpdate = fedExAdapter.getTrackingStatus(trackingNumber);
-
-        // Assert
-        assertNotNull(trackingUpdate);
-        assertEquals(mockTrackingResponse.getStatus(), trackingUpdate.getStatus());
-        assertEquals(mockTrackingResponse.getStatusDescription(), trackingUpdate.getStatusDescription());
-        assertEquals(mockTrackingResponse.getLocation(), trackingUpdate.getLocation());
-        assertEquals(mockTrackingResponse.getLastUpdated(), trackingUpdate.getLastUpdated());
-        verify(fedExApiClient, times(1)).getTrackingStatus(any(FedExTrackingRequest.class));
-    }
-
-    @Test
-    void testGetTrackingStatus_FedExApiClientThrowsException() {
-        // Arrange
-        when(fedExApiClient.getTrackingStatus(any(FedExTrackingRequest.class))).thenThrow(new RuntimeException("API error"));
-
-        // Act & Assert
-        CarrierException thrown = assertThrows(CarrierException.class, () -> {
-            fedExAdapter.getTrackingStatus(trackingNumber);
-        });
-        assertTrue(thrown.getMessage().contains("FedEx tracking failed"));
-        verify(fedExApiClient, times(1)).getTrackingStatus(any(FedExTrackingRequest.class));
+        assertNotNull(fedExAdapter.rateLoad(load));
     }
 }

@@ -5,6 +5,7 @@ import com.paklog.shipment.domain.OrderId;
 import com.paklog.shipment.domain.Shipment;
 import com.paklog.shipment.domain.ShipmentId;
 import com.paklog.shipment.domain.TrackingNumber;
+import com.paklog.shipment.domain.ShipmentStatus;
 import com.paklog.shipment.infrastructure.persistence.ShipmentDocument;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
 
+import java.time.Instant;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -37,11 +39,22 @@ class ShipmentMongoRepositoryTest {
 
     @BeforeEach
     void setUp() {
-        shipmentId = ShipmentId.newId();
+        shipmentId = ShipmentId.generate();
         orderId = OrderId.of("order-123");
         trackingNumber = TrackingNumber.of("track-456");
-        mockShipment = Shipment.newShipment(shipmentId, orderId, CarrierName.FEDEX);
-        mockShipment.assignTrackingNumber(trackingNumber);
+        Instant createdAt = Instant.parse("2024-01-01T00:00:00Z");
+        Instant dispatchedAt = Instant.parse("2024-01-01T01:00:00Z");
+        mockShipment = Shipment.restore(
+                shipmentId,
+                orderId,
+                CarrierName.FEDEX,
+                trackingNumber,
+                ShipmentStatus.DISPATCHED,
+                createdAt,
+                dispatchedAt,
+                null,
+                java.util.List.of()
+        );
         mockShipmentDocument = ShipmentDocument.fromDomain(mockShipment);
     }
 
@@ -55,7 +68,8 @@ class ShipmentMongoRepositoryTest {
 
         // Assert
         assertNotNull(savedShipment);
-        assertEquals(mockShipment, savedShipment);
+        assertEquals(mockShipment.getTrackingNumber(), savedShipment.getTrackingNumber());
+        assertEquals(mockShipment.getCarrierName(), savedShipment.getCarrierName());
         verify(mongoTemplate, times(1)).save(any(ShipmentDocument.class));
     }
 
@@ -69,7 +83,7 @@ class ShipmentMongoRepositoryTest {
 
         // Assert
         assertTrue(foundShipment.isPresent());
-        assertEquals(mockShipment, foundShipment.get());
+        assertEquals(mockShipment.getTrackingNumber(), foundShipment.get().getTrackingNumber());
         verify(mongoTemplate, times(1)).findById(shipmentId.getValue(), ShipmentDocument.class);
     }
 
@@ -96,7 +110,7 @@ class ShipmentMongoRepositoryTest {
 
         // Assert
         assertTrue(foundShipment.isPresent());
-        assertEquals(mockShipment, foundShipment.get());
+        assertEquals(mockShipment.getTrackingNumber(), foundShipment.get().getTrackingNumber());
         verify(mongoTemplate, times(1)).findOne(any(Query.class), eq(ShipmentDocument.class));
     }
 

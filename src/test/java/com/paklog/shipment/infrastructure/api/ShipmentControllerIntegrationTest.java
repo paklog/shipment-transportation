@@ -1,21 +1,19 @@
 package com.paklog.shipment.infrastructure.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.paklog.shipment.ShipmentTransportationApplication;
-import com.paklog.shipment.application.ShipmentService;
-import com.paklog.shipment.application.ShipmentService.ShipmentCreationException;
-import com.paklog.shipment.application.ShipmentService.ShipmentNotFoundException;
+import com.paklog.shipment.application.ShipmentApplicationService;
+import com.paklog.shipment.application.exception.ShipmentCreationException;
+import com.paklog.shipment.application.exception.ShipmentNotFoundException;
 import com.paklog.shipment.domain.CarrierName;
 import com.paklog.shipment.domain.OrderId;
 import com.paklog.shipment.domain.Shipment;
 import com.paklog.shipment.domain.ShipmentId;
 import com.paklog.shipment.domain.TrackingNumber;
+import com.paklog.shipment.domain.ShipmentStatus;
 import com.paklog.shipment.infrastructure.api.dto.CreateShipmentRequest;
-import com.paklog.shipment.domain.exception.CarrierException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -28,8 +26,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(classes = ShipmentTransportationApplication.class)
-@AutoConfigureMockMvc
+import java.time.Instant;
+import java.util.List;
+
+@WebMvcTest(controllers = ShipmentController.class)
 class ShipmentControllerIntegrationTest {
 
     @Autowired
@@ -39,15 +39,24 @@ class ShipmentControllerIntegrationTest {
     private ObjectMapper objectMapper;
 
     @MockBean
-    private ShipmentService shipmentService;
+    private ShipmentApplicationService shipmentService;
 
     @Test
     void testCreateShipment() throws Exception {
         // Arrange
         String packageId = "pkg-test-1";
         String orderId = "ord-test-1";
-        Shipment mockShipment = Shipment.newShipment(ShipmentId.newId(), OrderId.of(orderId), CarrierName.FEDEX);
-        mockShipment.assignTrackingNumber(TrackingNumber.of("TRK123"));
+        Shipment mockShipment = Shipment.restore(
+                ShipmentId.generate(),
+                OrderId.of(orderId),
+                CarrierName.FEDEX,
+                TrackingNumber.of("TRK123"),
+                ShipmentStatus.DISPATCHED,
+                Instant.now(),
+                Instant.now(),
+                null,
+                List.of()
+        );
         when(shipmentService.createShipment(any(CreateShipmentCommand.class))).thenReturn(mockShipment);
 
         // Act & Assert
@@ -63,8 +72,17 @@ class ShipmentControllerIntegrationTest {
     void testGetShipmentTracking() throws Exception {
         // Arrange
         String trackingNumber = "TRK123";
-        Shipment mockShipment = Shipment.newShipment(ShipmentId.newId(), OrderId.of("ord-test-2"), CarrierName.UPS);
-        mockShipment.assignTrackingNumber(TrackingNumber.of(trackingNumber));
+        Shipment mockShipment = Shipment.restore(
+                ShipmentId.generate(),
+                OrderId.of("ord-test-2"),
+                CarrierName.UPS,
+                TrackingNumber.of(trackingNumber),
+                ShipmentStatus.DISPATCHED,
+                Instant.now(),
+                Instant.now(),
+                null,
+                List.of()
+        );
         when(shipmentService.getShipmentTracking(trackingNumber)).thenReturn(mockShipment);
 
         // Act & Assert
@@ -100,7 +118,7 @@ class ShipmentControllerIntegrationTest {
     void testCreateShipment_CarrierFailureReturnsBadGateway() throws Exception {
         CreateShipmentRequest request = new CreateShipmentRequest("pkg", "order");
         when(shipmentService.createShipment(any(CreateShipmentCommand.class)))
-            .thenThrow(new CarrierException("Carrier unavailable", new RuntimeException("failure")));
+            .thenThrow(new ShipmentCreationException("Carrier unavailable"));
 
         mockMvc.perform(post("/shipments")
                 .contentType(MediaType.APPLICATION_JSON)
