@@ -8,7 +8,7 @@ import com.paklog.shipment.application.port.ShipmentEventPublisher;
 import com.paklog.shipment.config.ShipmentEventProperties;
 import com.paklog.shipment.domain.Shipment;
 import com.paklog.shipment.infrastructure.OutboxService;
-import java.time.Instant;
+import java.time.OffsetDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -81,11 +81,11 @@ public class ShipmentEventPublisherImpl implements ShipmentEventPublisher {
                                              String orderId,
                                              String carrier,
                                              String trackingNumber,
-                                             Instant dispatchedAt) {}
+                                             OffsetDateTime dispatchedAt) {}
 
     private record ShipmentDeliveredPayload(String shipmentId,
                                             String orderId,
                                             String carrier,
                                             String trackingNumber,
-                                            Instant deliveredAt) {}
+                                            OffsetDateTime deliveredAt) {}
 }

@@ -93,4 +93,16 @@ public class ShipmentMongoRepository implements ShipmentRepository {
         }
         return List.of();
     }
+
+    @Override
+    public List<Shipment> findAllById(List<ShipmentId> shipmentIds) {
+        List<String> ids = shipmentIds.stream()
+                .map(ShipmentId::getValue)
+                .map(Object::toString)
+                .collect(Collectors.toList());
+        Query query = new Query(Criteria.where("id").in(ids));
+        return mongoTemplate.find(query, ShipmentDocument.class).stream()
+                .map(ShipmentDocument::toDomain)
+                .collect(Collectors.toList());
+    }
 }

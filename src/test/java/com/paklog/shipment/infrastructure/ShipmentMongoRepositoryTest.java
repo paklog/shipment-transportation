@@ -16,7 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
 
-import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -44,8 +44,8 @@ class ShipmentMongoRepositoryTest {
         shipmentId = ShipmentId.generate();
         orderId = OrderId.of("order-123");
         trackingNumber = TrackingNumber.of("track-456");
-        Instant createdAt = Instant.parse("2024-01-01T00:00:00Z");
-        Instant dispatchedAt = Instant.parse("2024-01-01T01:00:00Z");
+        OffsetDateTime createdAt = OffsetDateTime.parse("2024-01-01T00:00:00Z");
+        OffsetDateTime dispatchedAt = OffsetDateTime.parse("2024-01-01T01:00:00Z");
         mockShipment = Shipment.restore(
                 shipmentId,
                 orderId,
@@ -56,7 +56,9 @@ class ShipmentMongoRepositoryTest {
                 createdAt,
                 dispatchedAt,
                 null,
-                java.util.List.of()
+                java.util.List.of(),
+                null,
+                createdAt.plusDays(1)
         );
         mockShipmentDocument = ShipmentDocument.fromDomain(mockShipment);
     }

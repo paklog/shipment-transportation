@@ -1,17 +1,17 @@
 package com.paklog.shipment.domain;
 
-import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.Objects;
 
 public class TrackingEvent {
     private final String status;
     private final String statusDescription;
     private final String location;
-    private final Instant timestamp;
+    private final OffsetDateTime timestamp;
     private final String eventCode;
     private final String detailedDescription;
 
-    public TrackingEvent(String status, String statusDescription, String location, Instant timestamp, String eventCode, String detailedDescription) {
+    public TrackingEvent(String status, String statusDescription, String location, OffsetDateTime timestamp, String eventCode, String detailedDescription) {
         this.status = Objects.requireNonNull(status, "status cannot be null");
         this.statusDescription = Objects.requireNonNull(statusDescription, "statusDescription cannot be null");
         this.location = Objects.requireNonNull(location, "location cannot be null");
@@ -32,7 +32,7 @@ public class TrackingEvent {
         return location;
     }
 
-    public Instant getTimestamp() {
+    public OffsetDateTime getTimestamp() {
         return timestamp;
     }
 

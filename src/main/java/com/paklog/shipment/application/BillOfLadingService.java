@@ -27,7 +27,7 @@ public class BillOfLadingService {
         bol.append(String.format("STATUS: %s\n", load.getStatus()));
         bol.append("-------------------------------------\n");
         bol.append(String.format("SHIPMENT COUNT: %d\n", load.getShipmentIds().size()));
-        bol.append(String.format("TOTAL WEIGHT: %s\n", load.getTotalWeight()));
+//        bol.append(String.format("TOTAL WEIGHT: %s\n", load.getTotalWeight()));
         bol.append("-------------------------------------\n");
         bol.append("SHIPMENTS:\n");
         load.getShipmentIds().forEach(shipmentId -> bol.append(String.format("- %s\n", shipmentId)));

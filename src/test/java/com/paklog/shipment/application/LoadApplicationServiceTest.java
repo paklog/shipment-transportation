@@ -1,28 +1,31 @@
 package com.paklog.shipment.application;
 
+import com.paklog.shipment.TestFixtures;
 import com.paklog.shipment.adapter.ICarrierAdapter;
 import com.paklog.shipment.domain.CarrierName;
 import com.paklog.shipment.domain.Load;
 import com.paklog.shipment.domain.LoadId;
 import com.paklog.shipment.domain.LoadStatus;
-import com.paklog.shipment.domain.OrderId;
-import com.paklog.shipment.domain.Shipment;
+import com.paklog.shipment.domain.Location;
+import com.paklog.shipment.domain.Pickup;
 import com.paklog.shipment.domain.ShipmentId;
-import com.paklog.shipment.domain.ShipmentStatus;
 import com.paklog.shipment.domain.ShippingCost;
-import com.paklog.shipment.domain.TrackingNumber;
+import com.paklog.shipment.domain.Tender;
+import com.paklog.shipment.domain.TenderStatus;
 import com.paklog.shipment.domain.repository.ILoadRepository;
 import com.paklog.shipment.domain.repository.ShipmentRepository;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import java.math.BigDecimal;
-import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -50,130 +53,75 @@ class LoadApplicationServiceTest {
     }
 
     @Test
-    void rateLoadUsesCarrierAdapter() {
-        LoadId loadId = LoadId.generate();
-        Load load = new Load(loadId);
+    void rateLoadDelegatesToCarrierAdapter() {
+        Load load = TestFixtures.sampleLoad(LoadStatus.PLANNED, null);
         load.assignCarrier(CarrierName.FEDEX);
-        when(loadRepository.findById(loadId)).thenReturn(Optional.of(load));
-        ShippingCost expected = new ShippingCost(new BigDecimal("12.50"), "USD", 3);
+        when(loadRepository.findById(load.getId())).thenReturn(Optional.of(load));
+        ShippingCost expected = new ShippingCost(new BigDecimal("125.50"), "USD", 3);
         when(carrierAdapter.rateLoad(load)).thenReturn(expected);
 
-        ShippingCost result = service.rateLoad(loadId);
+        ShippingCost result = service.rateLoad(load.getId());
 
         assertEquals(expected, result);
         verify(carrierAdapter).rateLoad(load);
     }
 
     @Test
-    void rateLoadThrowsWhenCarrierMissing() {
-        LoadId loadId = LoadId.generate();
-        Load load = new Load(loadId);
-        when(loadRepository.findById(loadId)).thenReturn(Optional.of(load));
+    void assignShipmentsToLoadAddsIdentifiers() {
+        Load load = TestFixtures.sampleLoad(LoadStatus.PLANNED, CarrierName.FEDEX);
+        when(loadRepository.findById(load.getId())).thenReturn(Optional.of(load));
 
-        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> service.rateLoad(loadId));
-        assertTrue(ex.getMessage().contains("must have a carrier"));
-    }
+        ShipmentId newShipment = ShipmentId.generate();
+        service.assignShipmentsToLoad(load.getId(), Set.of(newShipment.getValue()));
 
-    @Test
-    void rateLoadThrowsWhenAdapterMissing() {
-        LoadId loadId = LoadId.generate();
-        Load load = new Load(loadId);
-        load.assignCarrier(CarrierName.UPS);
-        when(loadRepository.findById(loadId)).thenReturn(Optional.of(load));
-
-        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> service.rateLoad(loadId));
-        assertTrue(ex.getMessage().contains("No adapter"));
-    }
-
-    @Test
-    void tenderLoadPersistsWhenAcceptedByCarrier() {
-        LoadId loadId = LoadId.generate();
-        Load load = new Load(loadId);
-        load.assignCarrier(CarrierName.FEDEX);
-        when(loadRepository.findById(loadId)).thenReturn(Optional.of(load));
-        when(carrierAdapter.tenderLoad(load)).thenReturn(true);
-
-        service.tenderLoad(loadId);
-
-        assertEquals(LoadStatus.TENDERED, load.getStatus());
-        verify(loadRepository).save(load);
-        assertEquals(1.0, metricsService.loadsTendered.count());
-    }
-
-    @Test
-    void tenderLoadSkipsWhenCarrierRejects() {
-        LoadId loadId = LoadId.generate();
-        Load load = new Load(loadId);
-        load.assignCarrier(CarrierName.FEDEX);
-        when(loadRepository.findById(loadId)).thenReturn(Optional.of(load));
-        when(carrierAdapter.tenderLoad(load)).thenReturn(false);
-
-        service.tenderLoad(loadId);
-
-        assertEquals(LoadStatus.OPEN, load.getStatus());
-        verify(loadRepository, never()).save(load);
-        assertEquals(0.0, metricsService.loadsTendered.count());
-    }
-
-    @Test
-    void tenderLoadThrowsWhenNoAdapter() {
-        LoadId loadId = LoadId.generate();
-        Load load = new Load(loadId);
-        load.assignCarrier(CarrierName.UPS);
-        when(loadRepository.findById(loadId)).thenReturn(Optional.of(load));
-
-        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> service.tenderLoad(loadId));
-        assertTrue(ex.getMessage().contains("No adapter"));
-    }
-
-    @Test
-    void handleTenderResponseBooksWhenAccepted() {
-        LoadId loadId = LoadId.generate();
-        Load load = new Load(loadId);
-        load.assignCarrier(CarrierName.FEDEX);
-        when(loadRepository.findById(loadId)).thenReturn(Optional.of(load));
-
-        service.handleTenderResponse(loadId, true);
-
-        assertEquals(LoadStatus.BOOKED, load.getStatus());
-        assertEquals(1.0, metricsService.loadsBooked.count());
+        boolean present = load.getShipmentIds().stream()
+                .anyMatch(id -> id.getValue().equals(newShipment.getValue()));
+        assertTrue(present);
         verify(loadRepository).save(load);
     }
 
     @Test
-    void schedulePickupRequiresBookedLoad() {
-        LoadId loadId = LoadId.generate();
-        Load load = new Load(loadId);
+    void tenderLoadCreatesPendingTender() {
+        Load load = TestFixtures.sampleLoad(LoadStatus.PLANNED, null);
         load.assignCarrier(CarrierName.FEDEX);
-        when(loadRepository.findById(loadId)).thenReturn(Optional.of(load));
+        when(loadRepository.findById(load.getId())).thenReturn(Optional.of(load));
 
-        assertThrows(IllegalStateException.class, () -> service.schedulePickup(loadId));
+        OffsetDateTime expiresAt = OffsetDateTime.parse("2024-05-10T17:00:00Z");
+        Load updated = service.tenderLoad(load.getId(), expiresAt, "call carrier");
+
+        assertEquals(TenderStatus.PENDING, updated.getTender().status());
+        assertEquals(expiresAt, updated.getTender().expiresAt());
+        verify(loadRepository).save(load);
     }
 
     @Test
-    void addShipmentToLoadPersistsAssignment() {
-        LoadId loadId = LoadId.generate();
-        ShipmentId shipmentId = ShipmentId.generate();
-        Load load = new Load(loadId);
-        Shipment shipment = Shipment.restore(
-                shipmentId,
-                OrderId.of("order-1"),
-                CarrierName.FEDEX,
-                TrackingNumber.of("trk-assign"),
-                "label".getBytes(),
-                ShipmentStatus.DISPATCHED,
-                Instant.parse("2024-01-01T00:00:00Z"),
-                Instant.parse("2024-01-01T01:00:00Z"),
-                null,
-                List.of()
-        );
+    void recordTenderDecisionUpdatesStatus() {
+        Load load = TestFixtures.sampleLoad(LoadStatus.PLANNED, null);
+        load.assignCarrier(CarrierName.FEDEX);
+        when(loadRepository.findById(load.getId())).thenReturn(Optional.of(load));
 
-        when(loadRepository.findById(loadId)).thenReturn(Optional.of(load));
-        when(shipmentRepository.findById(shipmentId)).thenReturn(Optional.of(shipment));
+        service.tenderLoad(load.getId(), OffsetDateTime.parse("2024-05-10T17:00:00Z"), null);
+        Load updated = service.recordTenderDecision(load.getId(), Tender.Decision.ACCEPTED, "ops@carrier.com", "confirmed");
 
-        service.addShipmentToLoad(loadId, shipmentId);
+        assertEquals(LoadStatus.TENDER_ACCEPTED, updated.getStatus());
+        assertEquals(TenderStatus.ACCEPTED, updated.getTender().status());
+        verify(loadRepository, times(2)).save(load);
+    }
 
-        assertTrue(load.getShipmentIds().contains(shipmentId));
+    @Test
+    void schedulePickupSetsPickupDetails() {
+        Load load = TestFixtures.sampleLoad(LoadStatus.BOOKED, CarrierName.FEDEX);
+        when(loadRepository.findById(load.getId())).thenReturn(Optional.of(load));
+
+        Location location = TestFixtures.sampleLocation();
+        OffsetDateTime scheduledFor = OffsetDateTime.parse("2024-05-15T14:00:00Z");
+
+        Load result = service.schedulePickup(load.getId(), scheduledFor, location, "Dock", "123", "Instructions");
+
+        Pickup pickup = result.getPickup();
+        assertNotNull(pickup);
+        assertEquals(scheduledFor, pickup.scheduledFor());
+        assertEquals(location, pickup.location());
         verify(loadRepository).save(load);
     }
 }

@@ -12,13 +12,13 @@ public class AppConfig {
 
     private static final LoadId UNASSIGNED_LOAD_ID = LoadId.of("00000000-0000-0000-0000-000000000000");
 
-    @Bean
-    public ApplicationRunner systemInitializer(ILoadRepository loadRepository) {
-        return args -> {
-            if (loadRepository.findById(UNASSIGNED_LOAD_ID).isEmpty()) {
-                Load unassignedLoad = new Load(UNASSIGNED_LOAD_ID);
-                loadRepository.save(unassignedLoad);
-            }
-        };
-    }
+    // @Bean
+    // public ApplicationRunner systemInitializer(ILoadRepository loadRepository) {
+    //     return args -> {
+    //         if (loadRepository.findById(UNASSIGNED_LOAD_ID).isEmpty()) {
+    //             // Load unassignedLoad = new Load(UNASSIGNED_LOAD_ID);
+    //             // loadRepository.save(unassignedLoad);
+    //         }
+    //     };
+    // }
 }

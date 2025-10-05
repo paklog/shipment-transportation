@@ -36,7 +36,7 @@ class OutboxEventPublisherTest {
 
     @BeforeEach
     void setUp() {
-        when(tracer.currentSpan()).thenReturn(null);
+        lenient().when(tracer.currentSpan()).thenReturn(null);
         outboxEventPublisher = new OutboxEventPublisher(
                 outboxService,
                 cloudEventSerializer,

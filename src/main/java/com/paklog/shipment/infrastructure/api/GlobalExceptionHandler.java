@@ -1,57 +1,61 @@
 package com.paklog.shipment.infrastructure.api;
 
-import com.paklog.shipment.application.exception.ShipmentCreationException;
+import com.paklog.shipment.application.exception.LoadNotFoundException;
 import com.paklog.shipment.application.exception.ShipmentNotFoundException;
-import com.paklog.shipment.domain.exception.CarrierException;
-import com.paklog.shipment.infrastructure.api.dto.ErrorResponse;
-import com.paklog.shipment.infrastructure.api.dto.FieldErrorResponse;
+import com.paklog.shipment.infrastructure.api.gen.dto.Problem;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.time.Instant;
-import java.util.List;
+import java.net.URI;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidationErrors(MethodArgumentNotValidException ex) {
-        BindingResult bindingResult = ex.getBindingResult();
-        List<FieldErrorResponse> fieldErrors = bindingResult.getFieldErrors().stream()
-            .map(fieldError -> new FieldErrorResponse(fieldError.getField(), resolveMessage(fieldError)))
-            .collect(Collectors.toList());
-        ErrorResponse response = new ErrorResponse("validation_error", "Validation failed", Instant.now(), fieldErrors);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    public ResponseEntity<Problem> handleValidationExceptions(MethodArgumentNotValidException ex) {
+        String detail = ex.getBindingResult().getAllErrors().stream()
+                .map(error -> {
+                    if (error instanceof FieldError fieldError) {
+                        return fieldError.getField() + ": " + fieldError.getDefaultMessage();
+                    }
+                    return error.getDefaultMessage();
+                })
+                .collect(Collectors.joining(", "));
+
+        return buildResponse(HttpStatus.BAD_REQUEST, URI.create("/problems/validation-error"), "One or more fields have an error: " + detail);
+    }
+
+    @ExceptionHandler(LoadNotFoundException.class)
+    public ResponseEntity<Problem> handleLoadNotFoundException(LoadNotFoundException ex) {
+        return buildResponse(HttpStatus.NOT_FOUND, URI.create("/problems/load-not-found"), ex.getMessage());
     }
 
     @ExceptionHandler(ShipmentNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNotFound(ShipmentNotFoundException ex) {
-        ErrorResponse response = new ErrorResponse("shipment_not_found", ex.getMessage(), Instant.now(), null);
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    public ResponseEntity<Problem> handleShipmentNotFoundException(ShipmentNotFoundException ex) {
+        return buildResponse(HttpStatus.NOT_FOUND, URI.create("/problems/shipment-not-found"), ex.getMessage());
     }
 
-    @ExceptionHandler({ShipmentCreationException.class, CarrierException.class})
-    public ResponseEntity<ErrorResponse> handleCarrierErrors(RuntimeException ex) {
-        ErrorResponse response = new ErrorResponse("shipment_creation_failed", ex.getMessage(), Instant.now(), null);
-        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(response);
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Problem> handleIllegalStateException(IllegalStateException ex) {
+        return buildResponse(HttpStatus.CONFLICT, URI.create("/problems/conflict"), ex.getMessage());
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGeneric(Exception ex) {
-        ErrorResponse response = new ErrorResponse("internal_error", "An unexpected error occurred", Instant.now(), null);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    public ResponseEntity<Problem> handleGenericException(Exception ex) {
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, URI.create("/problems/internal-server-error"), "An unexpected error occurred: " + ex.getMessage());
     }
 
-    private String resolveMessage(FieldError fieldError) {
-        if (fieldError.getDefaultMessage() != null) {
-            return fieldError.getDefaultMessage();
-        }
-        return "Invalid value";
+    private ResponseEntity<Problem> buildResponse(HttpStatus status, URI type, String detail) {
+        Problem problem = new Problem();
+        problem.setType(type);
+        problem.setTitle(status.getReasonPhrase());
+        problem.setStatus(status.value());
+        problem.setDetail(detail);
+        return new ResponseEntity<>(problem, status);
     }
 }

@@ -1,6 +1,6 @@
 package com.paklog.shipment.domain;
 
-import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -11,33 +11,36 @@ public class Shipment {
     private final ShipmentId id;
     private final OrderId orderId;
     private final CarrierName carrierName;
-    private final Instant createdAt;
+    private final OffsetDateTime createdAt;
     private final List<TrackingEvent> trackingEvents;
 
     private ShipmentStatus status;
     private TrackingNumber trackingNumber;
     private byte[] labelData;
-    private Instant dispatchedAt;
-    private Instant deliveredAt;
+    private OffsetDateTime dispatchedAt;
+    private OffsetDateTime deliveredAt;
+    private LoadId assignedLoadId;
+    private OffsetDateTime lastUpdatedAt;
 
-    private Shipment(ShipmentId id, OrderId orderId, CarrierName carrierName, Instant createdAt) {
+    private Shipment(ShipmentId id, OrderId orderId, CarrierName carrierName, OffsetDateTime createdAt) {
         this.id = Objects.requireNonNull(id, "Shipment id cannot be null");
         this.orderId = Objects.requireNonNull(orderId, "Order id cannot be null");
         this.carrierName = Objects.requireNonNull(carrierName, "Carrier cannot be null");
         this.createdAt = Objects.requireNonNull(createdAt, "Creation timestamp cannot be null");
         this.status = ShipmentStatus.CREATED;
         this.trackingEvents = new ArrayList<>();
+        this.lastUpdatedAt = this.createdAt;
     }
 
-    public static Shipment create(OrderId orderId, CarrierName carrierName, Instant createdAt) {
+    public static Shipment create(OrderId orderId, CarrierName carrierName, OffsetDateTime createdAt) {
         return new Shipment(ShipmentId.generate(), orderId, carrierName, createdAt);
     }
 
     public static Shipment create(OrderId orderId, CarrierName carrierName) {
-        return create(orderId, carrierName, Instant.now());
+        return create(orderId, carrierName, OffsetDateTime.now());
     }
 
-    public void dispatch(TrackingNumber trackingNumber, byte[] labelData, Instant dispatchedAt) {
+    public void dispatch(TrackingNumber trackingNumber, byte[] labelData, OffsetDateTime dispatchedAt) {
         ensureStatus(ShipmentStatus.CREATED, "Shipment can only be dispatched from CREATED state");
         Objects.requireNonNull(trackingNumber, "Tracking number cannot be null when dispatching");
         if (this.trackingNumber != null) {
@@ -51,6 +54,7 @@ public class Shipment {
         this.labelData = labelData.clone();
         this.dispatchedAt = Objects.requireNonNull(dispatchedAt, "dispatchedAt cannot be null");
         this.status = ShipmentStatus.DISPATCHED;
+        this.lastUpdatedAt = OffsetDateTime.now();
     }
 
     public void addTrackingEvent(TrackingEvent event) {
@@ -58,7 +62,7 @@ public class Shipment {
         ensureHasTrackingNumber();
         ensureNotDelivered();
         if (!trackingEvents.isEmpty()) {
-            Instant lastTimestamp = trackingEvents.get(trackingEvents.size() - 1).getTimestamp();
+            OffsetDateTime lastTimestamp = trackingEvents.get(trackingEvents.size() - 1).getTimestamp();
             if (!event.getTimestamp().isAfter(lastTimestamp)) {
                 throw new IllegalArgumentException("Tracking events must be in chronological order");
             }
@@ -67,9 +71,10 @@ public class Shipment {
         if (status == ShipmentStatus.DISPATCHED || status == ShipmentStatus.CREATED) {
             status = ShipmentStatus.IN_TRANSIT;
         }
+        this.lastUpdatedAt = OffsetDateTime.now();
     }
 
-    public void markAsDelivered(TrackingEvent deliveryEvent, Instant deliveredAt) {
+    public void markAsDelivered(TrackingEvent deliveryEvent, OffsetDateTime deliveredAt) {
         Objects.requireNonNull(deliveredAt, "Delivered timestamp cannot be null");
         ensureHasTrackingNumber();
         ensureNotDelivered();
@@ -78,6 +83,7 @@ public class Shipment {
         }
         this.status = ShipmentStatus.DELIVERED;
         this.deliveredAt = deliveredAt;
+        this.lastUpdatedAt = OffsetDateTime.now();
     }
 
     public void markDeliveryFailed(TrackingEvent failureEvent) {
@@ -87,6 +93,20 @@ public class Shipment {
         }
         this.status = ShipmentStatus.FAILED_DELIVERY;
         this.deliveredAt = null;
+        this.lastUpdatedAt = OffsetDateTime.now();
+    }
+
+    public void assignToLoad(LoadId loadId) {
+        if (this.assignedLoadId != null) {
+            throw new IllegalStateException("Shipment is already assigned to a load.");
+        }
+        this.assignedLoadId = Objects.requireNonNull(loadId, "LoadId cannot be null");
+        this.lastUpdatedAt = OffsetDateTime.now();
+    }
+
+    public void unassignFromLoad() {
+        this.assignedLoadId = null;
+        this.lastUpdatedAt = OffsetDateTime.now();
     }
 
     public ShipmentId getId() {
@@ -109,11 +129,11 @@ public class Shipment {
         return trackingNumber;
     }
 
-    public Instant getCreatedAt() {
+    public OffsetDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public Instant getDispatchedAt() {
+    public OffsetDateTime getDispatchedAt() {
         return dispatchedAt;
     }
 
@@ -121,12 +141,20 @@ public class Shipment {
         return labelData != null ? labelData.clone() : null;
     }
 
-    public Instant getDeliveredAt() {
+    public OffsetDateTime getDeliveredAt() {
         return deliveredAt;
     }
 
     public List<TrackingEvent> getTrackingEvents() {
         return Collections.unmodifiableList(trackingEvents);
+    }
+
+    public LoadId getAssignedLoadId() {
+        return assignedLoadId;
+    }
+
+    public OffsetDateTime getLastUpdatedAt() {
+        return lastUpdatedAt;
     }
 
     public boolean isDelivered() {
@@ -156,8 +184,8 @@ public class Shipment {
 
     public static Shipment restore(ShipmentId id, OrderId orderId, CarrierName carrierName,
                                    TrackingNumber trackingNumber, byte[] labelData, ShipmentStatus status,
-                                   Instant createdAt, Instant dispatchedAt, Instant deliveredAt,
-                                   List<TrackingEvent> trackingEvents) {
+                                   OffsetDateTime createdAt, OffsetDateTime dispatchedAt, OffsetDateTime deliveredAt,
+                                   List<TrackingEvent> trackingEvents, LoadId assignedLoadId, OffsetDateTime lastUpdatedAt) {
         Shipment shipment = new Shipment(id, orderId, carrierName, createdAt);
         shipment.status = Objects.requireNonNull(status, "Shipment status cannot be null");
         shipment.trackingNumber = trackingNumber;
@@ -168,6 +196,9 @@ public class Shipment {
         if (trackingEvents != null) {
             shipment.trackingEvents.addAll(trackingEvents);
         }
+        shipment.assignedLoadId = assignedLoadId;
+        shipment.lastUpdatedAt = lastUpdatedAt;
         return shipment;
     }
 }
+

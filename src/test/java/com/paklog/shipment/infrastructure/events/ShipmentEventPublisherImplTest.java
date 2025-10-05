@@ -15,7 +15,7 @@ import com.paklog.shipment.domain.TrackingEvent;
 import com.paklog.shipment.domain.TrackingNumber;
 import com.paklog.shipment.infrastructure.OutboxEvent;
 import com.paklog.shipment.infrastructure.OutboxService;
-import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -76,15 +76,15 @@ class ShipmentEventPublisherImplTest {
 
     private Shipment dispatchedShipment() {
         Shipment shipment = Shipment.create(OrderId.of("order-123"), CarrierName.FEDEX,
-                Instant.parse("2024-01-01T00:00:00Z"));
-        shipment.dispatch(TrackingNumber.of("trk-123"), "label".getBytes(), Instant.parse("2024-01-01T01:00:00Z"));
+                OffsetDateTime.parse("2024-01-01T00:00:00Z"));
+        shipment.dispatch(TrackingNumber.of("trk-123"), "label".getBytes(), OffsetDateTime.parse("2024-01-01T01:00:00Z"));
         return shipment;
     }
 
     private Shipment deliveredShipment() {
         Shipment shipment = dispatchedShipment();
         TrackingEvent delivered = new TrackingEvent("DELIVERED", "Delivered", "LA",
-                Instant.parse("2024-01-02T10:00:00Z"), "DEL", "Left at door");
+                OffsetDateTime.parse("2024-01-02T10:00:00Z"), "DEL", "Left at door");
         shipment.markAsDelivered(delivered, delivered.getTimestamp());
         return shipment;
     }

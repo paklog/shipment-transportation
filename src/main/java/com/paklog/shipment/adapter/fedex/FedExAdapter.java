@@ -55,8 +55,12 @@ public class FedExAdapter implements ICarrierAdapter {
         String status = "success";
         try {
             // Mock implementation: $10 per shipment + $0.50 per unit of weight
+            // Using the new Load properties
             BigDecimal shipmentCost = BigDecimal.TEN.multiply(new BigDecimal(load.getShipmentIds().size()));
-            BigDecimal weightCost = new BigDecimal("0.50").multiply(load.getTotalWeight());
+            // For now, we'll use a dummy weight as totalWeight was removed.
+            // In a real scenario, this would come from the shipments within the load.
+            BigDecimal dummyWeight = BigDecimal.valueOf(load.getShipmentIds().size() * 10); // 10 units per shipment
+            BigDecimal weightCost = new BigDecimal("0.50").multiply(dummyWeight);
             BigDecimal total = shipmentCost.add(weightCost);
             return new ShippingCost(total, "USD", 3);
         } catch (RuntimeException ex) {

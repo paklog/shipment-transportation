@@ -8,8 +8,6 @@ import org.mockito.Mockito;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import java.util.Base64;
-
 class CloudEventSerializerTest {
 
     private final CloudEventSerializer serializer = new CloudEventSerializer(new ObjectMapper());
@@ -33,9 +31,8 @@ class CloudEventSerializerTest {
         assertEquals("shipment-1", node.get("subject").asText());
         assertEquals("application/json", node.get("datacontenttype").asText());
         assertTrue(node.hasNonNull("time"));
-        assertTrue(node.has("data_base64"));
-        byte[] decoded = Base64.getDecoder().decode(node.get("data_base64").asText());
-        JsonNode payload = mapper.readTree(decoded);
+        assertTrue(node.hasNonNull("data"));
+        JsonNode payload = mapper.readTree(node.get("data").toString());
         assertEquals("bar", payload.get("foo").asText());
     }
 

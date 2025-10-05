@@ -11,16 +11,23 @@ import com.paklog.shipment.domain.LoadId;
 import com.paklog.shipment.domain.Package;
 import com.paklog.shipment.domain.Shipment;
 import com.paklog.shipment.domain.ShipmentId;
+import com.paklog.shipment.domain.ShipmentStatus;
 import com.paklog.shipment.domain.TrackingEvent;
 import com.paklog.shipment.domain.TrackingNumber;
 import com.paklog.shipment.domain.TrackingUpdate;
 import com.paklog.shipment.domain.exception.CarrierException;
 import com.paklog.shipment.domain.repository.ShipmentRepository;
 import com.paklog.shipment.domain.services.CarrierSelectionService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -71,14 +78,14 @@ public class ShipmentApplicationService {
         try {
             CarrierInfo carrierInfo = carrierAdapter.createShipment(packageDetails, command.getOrderId(), command.getPackageId());
             TrackingNumber trackingNumber = TrackingNumber.of(carrierInfo.getTrackingNumber());
-            Instant now = Instant.now();
+            OffsetDateTime now = OffsetDateTime.now();
 
             Shipment shipment = Shipment.create(command.getOrderId(), carrier, now);
             shipment.dispatch(trackingNumber, carrierInfo.getLabelData(), now);
 
             Shipment persisted = shipmentRepository.save(shipment);
             metricsService.shipmentsCreated.increment();
-            loadApplicationService.addShipmentToLoad(UNASSIGNED_LOAD_ID, persisted.getId());
+//            loadApplicationService.addShipmentToLoad(UNASSIGNED_LOAD_ID, persisted.getId());
             eventPublisher.shipmentDispatched(persisted);
             return persisted;
         } catch (CarrierException ex) {
@@ -109,6 +116,30 @@ public class ShipmentApplicationService {
         }
 
         shipmentRepository.save(shipment);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Shipment> getShipments(com.paklog.shipment.domain.ShipmentStatus status, CarrierName carrierName, int page, int size) {
+        List<Shipment> shipments = shipmentRepository.findAll();
+
+        var filtered = shipments.stream()
+                .filter(shipment -> status == null || shipment.getStatus() == status)
+                .filter(shipment -> carrierName == null || carrierName.equals(shipment.getCarrierName()))
+                .sorted(Comparator.comparing(Shipment::getCreatedAt).reversed())
+                .toList();
+
+        int fromIndex = Math.min(page * size, filtered.size());
+        int toIndex = Math.min(fromIndex + size, filtered.size());
+        List<Shipment> pageContent = filtered.subList(fromIndex, toIndex);
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        return new PageImpl<>(pageContent, pageable, filtered.size());
+    }
+
+    @Transactional(readOnly = true)
+    public Shipment getShipment(ShipmentId shipmentId) {
+        return shipmentRepository.findById(shipmentId)
+                .orElseThrow(() -> new ShipmentNotFoundException("Shipment not found: " + shipmentId.getValue()));
     }
 
     private ICarrierAdapter resolveCarrierAdapter(CarrierName carrier) {

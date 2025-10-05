@@ -9,11 +9,9 @@ import com.paklog.shipment.config.OutboxProperties;
 import com.paklog.shipment.config.ShipmentEventProperties;
 import com.paklog.shipment.domain.CarrierInfo;
 import com.paklog.shipment.domain.CarrierName;
-import com.paklog.shipment.domain.LoadId;
 import com.paklog.shipment.domain.Package;
 import com.paklog.shipment.domain.OrderId;
 import com.paklog.shipment.domain.Shipment;
-import com.paklog.shipment.domain.ShipmentId;
 import com.paklog.shipment.domain.repository.ILoadRepository;
 import com.paklog.shipment.domain.repository.ShipmentRepository;
 import com.paklog.shipment.domain.services.CarrierSelectionService;
@@ -110,6 +108,6 @@ class PackagePackedFlowTest {
         assertThat(outboxEvent.getAggregateType()).isEqualTo("Shipment");
         assertThat(outboxEvent.getDestination()).isEqualTo("fulfillment.shipment.v1.events");
         assertThat(metricsService.shipmentsCreated.count()).isEqualTo(1);
-        verify(loadApplicationService).addShipmentToLoad(eq(LoadId.of("00000000-0000-0000-0000-000000000000")), any(ShipmentId.class));
+        verifyNoInteractions(loadApplicationService);
     }
 }

@@ -14,6 +14,10 @@ public final class ShipmentId {
         return new ShipmentId(UUID.fromString(value));
     }
 
+    public static ShipmentId of(UUID value) {
+        return new ShipmentId(value);
+    }
+
     public static ShipmentId generate() {
         return new ShipmentId(UUID.randomUUID());
     }

@@ -19,4 +19,5 @@ public interface ShipmentRepository {
     void delete(ShipmentId shipmentId);
     boolean existsById(ShipmentId shipmentId);
     List<Shipment> findByLoadId(LoadId loadId);
+    List<Shipment> findAllById(List<ShipmentId> shipmentIds);
 }

@@ -2,14 +2,14 @@ package com.paklog.shipment.infrastructure.persistence;
 
 import com.paklog.shipment.domain.TrackingEvent;
 
-import java.time.Instant;
+import java.time.OffsetDateTime;
 
 public class TrackingEventDocument {
 
     private String status;
     private String statusDescription;
     private String location;
-    private Instant timestamp;
+    private OffsetDateTime timestamp;
     private String eventCode;
     private String detailedDescription;
 
@@ -54,11 +54,11 @@ public class TrackingEventDocument {
         this.location = location;
     }
 
-    public Instant getTimestamp() {
+    public OffsetDateTime getTimestamp() {
         return timestamp;
     }
 
-    public void setTimestamp(Instant timestamp) {
+    public void setTimestamp(OffsetDateTime timestamp) {
         this.timestamp = timestamp;
     }
 

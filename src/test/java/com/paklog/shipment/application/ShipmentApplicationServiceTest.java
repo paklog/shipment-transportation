@@ -7,7 +7,6 @@ import com.paklog.shipment.application.exception.ShipmentNotFoundException;
 import com.paklog.shipment.application.port.ShipmentEventPublisher;
 import com.paklog.shipment.domain.CarrierInfo;
 import com.paklog.shipment.domain.CarrierName;
-import com.paklog.shipment.domain.LoadId;
 import com.paklog.shipment.domain.OrderId;
 import com.paklog.shipment.domain.Package;
 import com.paklog.shipment.domain.Shipment;
@@ -26,7 +25,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -39,7 +38,6 @@ class ShipmentApplicationServiceTest {
 
     private static final String PACKAGE_ID = "pkg-123";
     private static final String ORDER_ID = "ord-456";
-    private static final LoadId UNASSIGNED_LOAD_ID = LoadId.of("00000000-0000-0000-0000-000000000000");
 
     @Mock
     private ShipmentRepository shipmentRepository;
@@ -89,7 +87,6 @@ class ShipmentApplicationServiceTest {
         assertEquals("trk-123", result.getTrackingNumber().getValue());
         assertArrayEquals("label-data".getBytes(), result.getLabelData());
         assertEquals(1.0, metricsService.shipmentsCreated.count());
-        verify(loadApplicationService).addShipmentToLoad(eq(UNASSIGNED_LOAD_ID), eq(result.getId()));
         verify(shipmentEventPublisher).shipmentDispatched(result);
         verify(carrierAdapter).createShipment(packageDetails, OrderId.of(ORDER_ID), PACKAGE_ID);
         verify(shipmentRepository).save(result);
@@ -104,10 +101,12 @@ class ShipmentApplicationServiceTest {
                 TrackingNumber.of("trk-existing"),
                 "label".getBytes(),
                 ShipmentStatus.DISPATCHED,
-                Instant.now(),
-                Instant.now(),
+                OffsetDateTime.parse("2024-01-01T00:00:00Z"),
+                OffsetDateTime.parse("2024-01-01T01:00:00Z"),
                 null,
-                List.of()
+                List.of(),
+                null,
+                OffsetDateTime.parse("2024-01-01T02:00:00Z")
         );
         when(shipmentRepository.findByOrderId(OrderId.of(ORDER_ID))).thenReturn(Optional.of(existing));
 
@@ -116,7 +115,6 @@ class ShipmentApplicationServiceTest {
         assertEquals(existing, result);
         assertEquals(0.0, metricsService.shipmentsCreated.count());
         verify(shipmentRepository, never()).save(any());
-        verify(loadApplicationService, never()).addShipmentToLoad(any(), any());
         verify(shipmentEventPublisher, never()).shipmentDispatched(any());
     }
 
@@ -168,7 +166,7 @@ class ShipmentApplicationServiceTest {
         when(shipmentRepository.findById(shipment.getId())).thenReturn(Optional.of(shipment));
 
         TrackingEvent newEvent = new TrackingEvent("IN_TRANSIT", "Departed facility", "NY",
-                Instant.parse("2024-01-02T00:00:00Z"), "CODE", "Details");
+                OffsetDateTime.parse("2024-01-02T00:00:00Z"), "CODE", "Details");
         TrackingUpdate update = new TrackingUpdate(newEvent, false, List.of(newEvent));
 
         shipmentService.updateShipmentTracking(shipment.getId(), update);
@@ -184,7 +182,7 @@ class ShipmentApplicationServiceTest {
         when(shipmentRepository.findById(shipment.getId())).thenReturn(Optional.of(shipment));
 
         TrackingEvent deliveredEvent = new TrackingEvent("DELIVERED", "Package delivered", "LA",
-                Instant.parse("2024-01-02T10:00:00Z"), "DEL", "Left at door");
+                OffsetDateTime.parse("2024-01-02T10:00:00Z"), "DEL", "Left at door");
         TrackingUpdate update = new TrackingUpdate(deliveredEvent, true, List.of(deliveredEvent));
 
         shipmentService.updateShipmentTracking(shipment.getId(), update);
@@ -197,8 +195,8 @@ class ShipmentApplicationServiceTest {
 
     private Shipment createDispatchedShipment() {
         Shipment shipment = Shipment.create(OrderId.of(ORDER_ID), CarrierName.FEDEX,
-                Instant.parse("2024-01-01T00:00:00Z"));
-        shipment.dispatch(TrackingNumber.of("trk-123"), "label".getBytes(), Instant.parse("2024-01-01T01:00:00Z"));
+                OffsetDateTime.parse("2024-01-01T00:00:00Z"));
+        shipment.dispatch(TrackingNumber.of("trk-123"), "label".getBytes(), OffsetDateTime.parse("2024-01-01T01:00:00Z"));
         return shipment;
     }
 }

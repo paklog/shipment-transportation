@@ -46,17 +46,18 @@ public class AutomatedLoadBuildingJob {
             Map<String, List<Shipment>> shipmentsByDestination = unassignedShipments.stream()
                     .collect(Collectors.groupingBy(s -> "New York"));
 
-            for (LoadTemplate template : templates) {
-                List<Shipment> shipmentsForLoad = shipmentsByDestination.get(template.getDestinationCity());
-                if (shipmentsForLoad != null && !shipmentsForLoad.isEmpty()) {
-                    LoadId newLoadId = loadApplicationService.createLoad();
-                    for (Shipment shipment : shipmentsForLoad) {
-                        loadApplicationService.addShipmentToLoad(newLoadId, shipment.getId());
-                    }
-                    loadsCreated++;
-                    logger.info("Created new load {} for destination {}", newLoadId, template.getDestinationCity());
-                }
-            }
+            // TODO: Rewrite this job to use the new LoadApplicationService methods and CreateLoadCommand
+            // for (LoadTemplate template : templates) {
+            //     List<Shipment> shipmentsForLoad = shipmentsByDestination.get(template.getDestinationCity());
+            //     if (shipmentsForLoad != null && !shipmentsForLoad.isEmpty()) {
+            //         LoadId newLoadId = loadApplicationService.createLoad();
+            //         for (Shipment shipment : shipmentsForLoad) {
+            //             loadApplicationService.addShipmentToLoad(newLoadId, shipment.getId());
+            //         }
+            //         loadsCreated++;
+            //         logger.info("Created new load {} for destination {}", newLoadId, template.getDestinationCity());
+            //     }
+            // }
             observation.lowCardinalityKeyValue(KeyValue.of("result", "success"));
         } catch (RuntimeException ex) {
             observation.lowCardinalityKeyValue(KeyValue.of("result", "failed"));

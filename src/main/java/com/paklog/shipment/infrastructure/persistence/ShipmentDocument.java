@@ -1,16 +1,11 @@
+
 package com.paklog.shipment.infrastructure.persistence;
 
-import com.paklog.shipment.domain.CarrierName;
-import com.paklog.shipment.domain.OrderId;
-import com.paklog.shipment.domain.Shipment;
-import com.paklog.shipment.domain.ShipmentId;
-import com.paklog.shipment.domain.ShipmentStatus;
-import com.paklog.shipment.domain.TrackingEvent;
-import com.paklog.shipment.domain.TrackingNumber;
+import com.paklog.shipment.domain.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -22,11 +17,13 @@ public class ShipmentDocument {
     private String carrierName;
     private String trackingNumber;
     private String status;
-    private Instant createdAt;
-    private Instant dispatchedAt;
-    private Instant deliveredAt;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime dispatchedAt;
+    private OffsetDateTime deliveredAt;
     private List<TrackingEventDocument> trackingEvents;
     private byte[] labelData;
+    private String assignedLoadId;
+    private OffsetDateTime lastUpdatedAt;
 
     public static ShipmentDocument fromDomain(Shipment shipment) {
         ShipmentDocument doc = new ShipmentDocument();
@@ -42,6 +39,8 @@ public class ShipmentDocument {
         doc.setTrackingEvents(shipment.getTrackingEvents().stream()
             .map(TrackingEventDocument::fromDomain)
             .collect(Collectors.toList()));
+        doc.setAssignedLoadId(shipment.getAssignedLoadId() != null ? shipment.getAssignedLoadId().getValue().toString() : null);
+        doc.setLastUpdatedAt(shipment.getLastUpdatedAt());
         return doc;
     }
 
@@ -60,7 +59,9 @@ public class ShipmentDocument {
             createdAt,
             dispatchedAt,
             deliveredAt,
-            events
+            events,
+            assignedLoadId != null ? LoadId.of(assignedLoadId) : null,
+            lastUpdatedAt
         );
     }
 
@@ -104,27 +105,27 @@ public class ShipmentDocument {
         this.status = status;
     }
 
-    public Instant getCreatedAt() {
+    public OffsetDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(Instant createdAt) {
+    public void setCreatedAt(OffsetDateTime createdAt) {
         this.createdAt = createdAt;
     }
 
-    public Instant getDispatchedAt() {
+    public OffsetDateTime getDispatchedAt() {
         return dispatchedAt;
     }
 
-    public void setDispatchedAt(Instant dispatchedAt) {
+    public void setDispatchedAt(OffsetDateTime dispatchedAt) {
         this.dispatchedAt = dispatchedAt;
     }
 
-    public Instant getDeliveredAt() {
+    public OffsetDateTime getDeliveredAt() {
         return deliveredAt;
     }
 
-    public void setDeliveredAt(Instant deliveredAt) {
+    public void setDeliveredAt(OffsetDateTime deliveredAt) {
         this.deliveredAt = deliveredAt;
     }
 
@@ -142,5 +143,21 @@ public class ShipmentDocument {
 
     public void setLabelData(byte[] labelData) {
         this.labelData = labelData;
+    }
+
+    public String getAssignedLoadId() {
+        return assignedLoadId;
+    }
+
+    public void setAssignedLoadId(String assignedLoadId) {
+        this.assignedLoadId = assignedLoadId;
+    }
+
+    public OffsetDateTime getLastUpdatedAt() {
+        return lastUpdatedAt;
+    }
+
+    public void setLastUpdatedAt(OffsetDateTime lastUpdatedAt) {
+        this.lastUpdatedAt = lastUpdatedAt;
     }
 }
