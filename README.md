@@ -1,67 +1,213 @@
 # Shipment & Transportation Service
 
-A Spring Boot microservice implementing Domain-Driven Design and Hexagonal Architecture for managing shipments and carrier integrations in the fulfillment domain.
+Carrier integration and shipment tracking service with DDD, hexagonal architecture, CloudEvents, and transactional outbox pattern.
 
-## 🏗️ Architecture Overview
+## Overview
 
-This service implements the **Shipment & Transportation Bounded Context** with the following architectural patterns:
+The Shipment & Transportation Service manages shipment creation, carrier integration, and tracking within the Paklog fulfillment platform. This bounded context handles carrier selection, load tendering, shipping label generation, and real-time tracking updates. It integrates with external carrier APIs (FedEx, UPS, etc.) and provides shipment visibility across the fulfillment lifecycle.
 
-- **Hexagonal Architecture** (Ports and Adapters)
-- **Domain-Driven Design** tactical patterns
-- **Event-Driven Architecture** with CloudEvents
-- **Transactional Outbox Pattern** for reliable event publishing
-- **CQRS-like separation** between commands and queries
+## Domain-Driven Design
 
-### Core Business Capabilities
+### Bounded Context
+**Shipment & Transportation Management** - Manages shipments, carrier integrations, load tendering, and tracking throughout the delivery journey.
 
-- **Carrier Integration**: Select optimal carriers and generate shipping labels
-- **Shipment Tracking**: Monitor packages throughout their journey
-- **Event Publishing**: Notify other services of shipment lifecycle events
+### Core Domain Model
 
-## 🚀 Quick Start
+#### Aggregates
+- **Shipment** - Root aggregate representing a shipment with tracking and carrier information
+- **Load** - Aggregate representing a tender/booking with a carrier
+
+#### Entities
+- **TrackingEvent** - Individual tracking update in shipment journey
+- **Tender** - Carrier tender/booking request
+- **Pickup** - Pickup schedule information
+
+#### Value Objects
+- **ShipmentId** - Unique shipment identifier
+- **LoadId** - Unique load identifier
+- **OrderId** - Reference to fulfillment order
+- **TrackingNumber** - Carrier tracking number
+- **CarrierName** - Carrier identifier
+- **CarrierInfo** - Carrier details and capabilities
+- **Package** - Package dimensions and weight
+- **Location** - Geographic location information
+- **ShippingCost** - Cost and currency
+- **TrackingUpdate** - Tracking status update details
+- **ShipmentStatus** - Shipment lifecycle status
+- **LoadStatus** - Load processing status
+- **TenderStatus** - Tender response status
+
+#### Domain Events
+- **PackagePackedEvent** - Package packed and ready for shipment (consumed)
+- **LoadCreatedEvent** - Load tender created
+- **ShipmentDispatchedEvent** - Shipment dispatched with carrier
+- **ShipmentDeliveredEvent** - Shipment delivered to customer
+
+#### Domain Services
+- **CarrierSelectionService** - Selects optimal carrier based on strategy
+- **DefaultCarrierSelectionStrategy** - Default carrier selection logic
+
+### Ubiquitous Language
+- **Shipment**: Package or set of packages being transported
+- **Load**: Tender or booking with a carrier
+- **Carrier**: Third-party logistics provider (FedEx, UPS, etc.)
+- **Tender**: Request to carrier for shipment service
+- **Tracking Number**: Carrier-provided shipment identifier
+- **Tracking Event**: Status update in shipment journey
+- **Dispatch**: Handover of shipment to carrier
+- **BOL (Bill of Lading)**: Shipping document
+- **Manifest**: List of shipments in a load
+
+## Architecture & Patterns
+
+### Hexagonal Architecture (Ports and Adapters)
+
+```
+src/main/java/com/paklog/shipment/
+├── domain/                           # Core business logic
+│   ├── Shipment.java                # Main aggregate root
+│   ├── Load.java                    # Load aggregate
+│   ├── TrackingEvent.java           # Entity
+│   ├── Package.java                 # Value object
+│   ├── CarrierName.java             # Value object
+│   ├── repository/                  # Repository interfaces (ports)
+│   ├── services/                    # Domain services
+│   └── events/                      # Domain events
+├── application/                      # Use cases & orchestration
+│   ├── service/                     # Application services
+│   ├── port/                        # Application ports
+│   └── dto/                         # Application DTOs
+└── infrastructure/                   # External adapters
+    ├── persistence/                 # MongoDB repositories
+    ├── carrier/                     # Carrier API adapters
+    ├── messaging/                   # Kafka consumers/publishers
+    ├── outbox/                      # Outbox scheduler
+    ├── job/                         # Scheduled tracking jobs
+    └── configuration/               # Configuration
+```
+
+### Design Patterns & Principles
+- **Hexagonal Architecture** - Clean separation of domain and infrastructure
+- **Domain-Driven Design** - Rich domain model with business invariants
+- **Event-Driven Architecture** - Integration via domain events
+- **Transactional Outbox Pattern** - Guaranteed event delivery
+- **Adapter Pattern** - Unified interface for multiple carriers
+- **Strategy Pattern** - Pluggable carrier selection strategies
+- **Repository Pattern** - Data access abstraction
+- **SOLID Principles** - Maintainable and extensible code
+
+## Technology Stack
+
+### Core Framework
+- **Java 21** - Programming language
+- **Spring Boot 3.2+** - Application framework
+- **Maven** - Build and dependency management
+
+### Data & Persistence
+- **MongoDB** - Document database for aggregates
+- **Spring Data MongoDB** - Data access layer
+
+### Messaging & Events
+- **Apache Kafka** - Event streaming platform
+- **Spring Kafka** - Kafka integration
+- **CloudEvents** - Standardized event format
+
+### External Integrations
+- **FedEx API** - FedEx carrier integration
+- **UPS API** - UPS carrier integration
+- **WireMock** - API mocking for testing
+
+### API & Documentation
+- **Spring Web MVC** - REST API framework
+- **SpringDoc OpenAPI** - API documentation
+- **Bean Validation** - Input validation
+
+### Observability
+- **Spring Boot Actuator** - Health checks and metrics
+- **Micrometer** - Metrics collection
+- **OpenTelemetry** - Distributed tracing
+- **Prometheus** - Metrics aggregation
+- **Loki** - Log aggregation
+
+### Testing
+- **JUnit 5** - Unit testing framework
+- **Testcontainers** - Integration testing
+- **WireMock** - Carrier API mocking
+- **Mockito** - Mocking framework
+- **AssertJ** - Fluent assertions
+
+### DevOps
+- **Docker** - Containerization
+- **Docker Compose** - Local development environment
+
+## Standards Applied
+
+### Architectural Standards
+- ✅ Hexagonal Architecture (Ports and Adapters)
+- ✅ Domain-Driven Design tactical patterns
+- ✅ Event-Driven Architecture
+- ✅ Microservices architecture
+- ✅ RESTful API design
+- ✅ Anti-Corruption Layer for external APIs
+
+### Code Quality Standards
+- ✅ SOLID principles
+- ✅ Clean Code practices
+- ✅ Comprehensive unit and integration testing
+- ✅ Domain-driven design patterns
+- ✅ Immutable value objects
+- ✅ Rich domain models with business logic
+
+### Event & Integration Standards
+- ✅ CloudEvents specification v1.0
+- ✅ Transactional Outbox Pattern
+- ✅ At-least-once delivery semantics
+- ✅ Event versioning strategy
+- ✅ Idempotent event consumers
+
+### Observability Standards
+- ✅ Structured logging (JSON)
+- ✅ Distributed tracing (OpenTelemetry)
+- ✅ Health check endpoints
+- ✅ Prometheus metrics
+- ✅ Correlation ID propagation
+- ✅ Custom business metrics
+
+## Quick Start
 
 ### Prerequisites
-
 - Java 21+
 - Maven 3.8+
 - Docker & Docker Compose
-- MongoDB 7.0+
-- Apache Kafka 2.8+
 
-### Local Development Setup
+### Local Development
 
 1. **Clone the repository**
-```bash
-git clone <repository-url>
-cd shipment-transportation
-```
+   ```bash
+   git clone https://github.com/paklog/shipment-transportation.git
+   cd shipment-transportation
+   ```
 
 2. **Start infrastructure services**
-```bash
-docker-compose up -d mongodb kafka
-```
+   ```bash
+   docker-compose up -d mongodb kafka
+   ```
 
-3. **Export OpenTelemetry endpoints (optional)**
-```bash
-export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:4318/v1/traces
-export OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=http://localhost:4318/v1/metrics
-```
+3. **Build and run the application**
+   ```bash
+   mvn spring-boot:run
+   ```
 
-4. **Run the application**
-```bash
-./mvnw spring-boot:run -Dspring-boot.run.profiles=local
-```
+4. **Verify the service is running**
+   ```bash
+   curl http://localhost:8080/api/management/health
+   ```
 
-5. **Verify the service is running**
-```bash
-curl http://localhost:8080/api/management/health
-```
-
-### Using Docker Compose (Recommended for Development)
+### Using Docker Compose
 
 ```bash
-# Start all services including the application
-docker-compose up
+# Start all services
+docker-compose up -d
 
 # View logs
 docker-compose logs -f app
@@ -70,245 +216,47 @@ docker-compose logs -f app
 docker-compose down
 ```
 
-## 📋 API Documentation
+## API Documentation
 
-### Interactive API Explorer
-
-Once the service is running, visit:
+Once running, access the interactive API documentation:
 - **Swagger UI**: http://localhost:8080/api/swagger-ui.html
 - **OpenAPI Spec**: http://localhost:8080/api/api-docs
 
-### Core Endpoints
+### Key Endpoints
 
-#### Get Shipment Tracking
-```http
-GET /api/v1/shipments/{shipmentId}/tracking
-```
+- `GET /api/v1/shipments/{shipmentId}/tracking` - Get shipment tracking details
+- `GET /api/management/health` - Health check with carrier status
+- `GET /api/management/metrics` - Application metrics
+- `GET /api/management/prometheus` - Prometheus metrics
 
-**Example Request:**
-```bash
-curl -X GET "http://localhost:8080/api/v1/shipments/550e8400-e29b-41d4-a716-446655440000/tracking" \
-  -H "Accept: application/json"
-```
-
-**Example Response:**
-```json
-{
-  "shipment_id": "550e8400-e29b-41d4-a716-446655440000",
-  "order_id": "987fcdeb-51a2-43d1-9c4f-123456789abc",
-  "status": "in_transit",
-  "carrier_name": "FedEx",
-  "tracking_number": "784398712345",
-  "created_at": "2023-12-01T10:30:00Z",
-  "dispatched_at": "2023-12-01T11:00:00Z",
-  "delivered_at": null,
-  "tracking_history": [
-    {
-      "timestamp": "2023-12-01T11:00:00Z",
-      "status_description": "Package dispatched from fulfillment center",
-      "location": null
-    },
-    {
-      "timestamp": "2023-12-01T15:30:00Z",
-      "status_description": "Arrived at sorting facility",
-      "location": {
-        "city": "New York",
-        "state_or_region": "NY",
-        "postal_code": "10001",
-        "country_code": "US"
-      }
-    }
-  ]
-}
-```
-
-#### Health Check
-```http
-GET /api/management/health
-```
-
-**Example Response:**
-```json
-{
-  "status": "UP",
-  "components": {
-    "mongo": {
-      "status": "UP",
-      "details": {
-        "version": "7.0.0"
-      }
-    },
-    "kafka": {
-      "status": "UP"
-    },
-    "carriers": {
-      "status": "UP",
-      "details": {
-        "FedEx": "UP",
-        "UPS": "UP"
-      }
-    },
-    "outbox": {
-      "status": "UP",
-      "details": {
-        "unpublished_events": 0
-      }
-    }
-  }
-}
-```
-
-## 🔄 Event Integration
-
-This service participates in the event-driven architecture by:
-
-### Consuming Events
-
-**PackagePacked Event** (from Warehouse Service, topic `fulfillment.warehouse.v1.events`):
-```json
-{
-  "specversion": "1.0",
-  "type": "com.paklog.fulfillment.warehouse.package.packed",
-  "source": "urn:paklog:warehouse",
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "time": "2023-12-01T10:30:00Z",
-  "datacontenttype": "application/json",
-  "data": {
-    "package": {
-      "package_id": "123e4567-e89b-12d3-a456-426614174000",
-      "order_id": "987fcdeb-51a2-43d1-9c4f-123456789abc",
-      "weight": {
-        "value": 2.5,
-        "unit": "kg"
-      },
-      "dimensions": {
-        "length": 20,
-        "width": 15,
-        "height": 10,
-        "unit": "cm"
-      }
-    }
-  }
-}
-```
-
-### Publishing Events
-
-**ShipmentDispatched Event**:
-```json
-{
-  "specversion": "1.0",
-  "type": "com.paklog.shipment.dispatched.v1",
-  "source": "urn:paklog:shipment-transportation/shipment",
-  "subject": "550e8400-e29b-41d4-a716-446655440001",
-  "id": "660e8400-e29b-41d4-a716-446655440001",
-  "time": "2023-12-01T11:00:00Z",
-  "datacontenttype": "application/json",
-  "data": {
-    "shipment_id": "550e8400-e29b-41d4-a716-446655440001",
-    "order_id": "987fcdeb-51a2-43d1-9c4f-123456789abc",
-    "carrier_name": "FedEx",
-    "tracking_number": "784398712345",
-    "dispatched_at": "2023-12-01T11:00:00Z"
-  }
-}
-```
-
-**ShipmentDelivered Event**:
-```json
-{
-  "specversion": "1.0",
-  "type": "com.paklog.shipment.delivered.v1",
-  "source": "urn:paklog:shipment-transportation/shipment",
-  "subject": "550e8400-e29b-41d4-a716-446655440001",
-  "id": "770e8400-e29b-41d4-a716-446655440001",
-  "time": "2023-12-03T14:30:00Z",
-  "datacontenttype": "application/json",
-  "data": {
-    "shipment_id": "550e8400-e29b-41d4-a716-446655440001",
-    "order_id": "987fcdeb-51a2-43d1-9c4f-123456789abc",
-    "delivered_at": "2023-12-03T14:30:00Z"
-  }
-}
-```
-
-## 🧪 Testing
-
-### Running Tests
+## Testing
 
 ```bash
-# Unit tests only
-./mvnw test
+# Run unit tests
+mvn test
 
-# Integration tests
-./mvnw verify -Dtest.profile=integration
+# Run integration tests
+mvn verify
 
-# All tests with coverage
-./mvnw clean verify
+# Run tests with coverage
+mvn clean verify jacoco:report
 
 # View coverage report
 open target/site/jacoco/index.html
 ```
 
-### Test Categories
+## Configuration
 
-- **Unit Tests**: Domain logic, value objects, services
-- **Integration Tests**: Repository, messaging, external APIs
-- **Contract Tests**: Carrier API integration with WireMock
-
-### Testing with TestContainers
-
-Integration tests use TestContainers for:
-- MongoDB (real database operations)
-- Kafka (event publishing/consuming)
-- WireMock (external API simulation)
-
-## 📊 Monitoring & Observability
-
-### Metrics & Traces
-
-- **Health**: `/api/management/health`
-- **Metrics**: `/api/management/metrics`
-- **Prometheus scrape**: `/api/management/prometheus`
-- **Info**: `/api/management/info`
-
-Key Micrometer meters:
-
-| Meter | Description |
-|-------|-------------|
-| `shipments.created` | Counter of shipments created via PackagePacked flow |
-| `loads.tendered` / `loads.booked` | Counters for carrier tender/booking outcomes |
-| `carrier.api.calls` | Counter tagged by carrier/operation/status |
-| `carrier.api.latency` | Timer histogram for carrier API calls |
-| `tracking.jobs.succeeded` / `tracking.jobs.failed` | Scheduled job success/error counts |
-
-Traces are exported via OTLP (HTTP) whenever `OTEL_EXPORTER_OTLP_*` variables are supplied. Kafka consumers/producers, outbox publishing, and scheduled jobs are wrapped in Spring Observability `Observation`s, producing spans and structured JSON logs with `traceId`/`spanId` enriched automatically.
-
-## 🔧 Configuration
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `MONGODB_URI` | MongoDB connection string | `mongodb://localhost:27017/shipment_transport` |
-| `KAFKA_BROKERS` | Kafka broker addresses | `localhost:9092` |
-| `FEDEX_API_URL` | FedEx API endpoint | `https://apis-sandbox.fedex.com` |
-| `FEDEX_API_KEY` | FedEx API key | Required |
-| `FEDEX_ACCOUNT_NUMBER` | FedEx account number | Required |
-| `TRACKING_JOB_ENABLED` | Enable background tracking job | `true` |
-| `TRACKING_JOB_INTERVAL` | Tracking job interval (ms) | `3600000` (1 hour) |
-| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | OTLP traces endpoint URL | `http://localhost:4318/v1/traces` |
-| `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | OTLP metrics endpoint URL | `http://localhost:4318/v1/metrics` |
-
-### Profiles
-
-- **local**: Development with external services on localhost
-- **docker**: Running in Docker Compose environment
-- **production**: Production configuration with external dependencies
-
-### Carrier Configuration
+Key configuration properties:
 
 ```yaml
+spring:
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/shipment_transport}
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+
 carriers:
   fedex:
     api-url: ${FEDEX_API_URL}
@@ -318,168 +266,77 @@ carriers:
     api-url: ${UPS_API_URL}
     api-key: ${UPS_API_KEY}
     account-number: ${UPS_ACCOUNT_NUMBER}
+
+tracking:
+  job:
+    enabled: ${TRACKING_JOB_ENABLED:true}
+    interval: ${TRACKING_JOB_INTERVAL:3600000}
 ```
 
-## 📁 Project Structure
+## Event Integration
 
-```
-src/main/java/com/example/shipment/
-├── domain/                     # Core business logic
-│   ├── model/                 # Aggregates, Entities, Value Objects
-│   │   ├── aggregate/         # Shipment aggregate
-│   │   ├── entity/            # TrackingEvent entity
-│   │   ├── valueobject/       # All value objects
-│   │   └── exception/         # Domain exceptions
-│   ├── service/               # Domain services
-│   ├── repository/            # Repository interfaces (ports)
-│   └── port/                  # Adapter interfaces
-├── application/               # Use cases and application services
-│   ├── service/               # Application services
-│   ├── port/                  # Application ports
-│   └── dto/                   # Application DTOs
-├── infrastructure/            # External concerns and adapters
-│   ├── persistence/           # MongoDB implementations
-│   ├── carrier/               # Carrier API adapters
-│   ├── messaging/             # CloudEvents and Kafka
-│   ├── outbox/                # Transactional outbox pattern
-│   ├── job/                   # Scheduled jobs
-│   └── configuration/         # Infrastructure configuration
-└── adapter/                   # External interfaces
-    ├── web/                   # REST controllers
-    └── messaging/             # Event consumers
-```
+### Consumed Events
+- `com.paklog.warehouse.package.packed` - From Warehouse Operations
 
-## 🛠️ Development Workflows
+### Published Events
+- `com.paklog.shipment.dispatched.v1`
+- `com.paklog.shipment.delivered.v1`
+- `com.paklog.shipment.load.created.v1`
 
-### Adding a New Carrier
+### Event Format
+All events follow the CloudEvents specification v1.0 and are published via the transactional outbox pattern.
 
-1. **Create Adapter Implementation**
-```java
-@Component
-public class UpsAdapter implements ICarrierAdapter {
-    // Implement UPS-specific API integration
-}
-```
+## Carrier Integration
 
-2. **Add Configuration**
-```yaml
-carriers:
-  ups:
-    api-url: ${UPS_API_URL}
-    api-key: ${UPS_API_KEY}
-```
+### Supported Carriers
+- **FedEx** - Full integration with rate shopping and tracking
+- **UPS** - Full integration with rate shopping and tracking
 
-3. **Create Tests**
-```java
-@ExtendWith(MockitoExtension.class)
-class UpsAdapterTest {
-    // Test UPS-specific functionality
-}
-```
+### Adding New Carriers
 
-### Extending Tracking Information
+1. Create carrier adapter implementing `ICarrierAdapter`
+2. Add carrier configuration
+3. Register adapter in Spring context
+4. Add integration tests with WireMock
 
-1. **Update TrackingEvent Entity** (if needed)
-2. **Modify TrackingEventDocument** for persistence
-3. **Update API Response DTOs**
-4. **Add tests for new functionality**
+## Background Jobs
 
-### Custom Carrier Selection Strategy
+### Tracking Update Job
+- **Purpose**: Polls carrier APIs for shipment updates
+- **Frequency**: Configurable (default: 1 hour)
+- **Metrics**: `tracking.jobs.succeeded`, `tracking.jobs.failed`
 
-```java
-@Component
-public class FastestDeliveryStrategy implements CarrierSelectionStrategy {
-    
-    @Override
-    public CarrierSelectionResult selectCarrier(Package packageInfo, List<ICarrierAdapter> adapters) {
-        // Implement fastest delivery logic
-        return new CarrierSelectionResult(selectedCarrier, cost, reason);
-    }
-}
-```
+## Monitoring
 
-## 🚢 Deployment
+- **Health**: http://localhost:8080/api/management/health
+  - MongoDB connectivity
+  - Kafka connectivity
+  - Carrier API availability
+  - Outbox event status
+- **Metrics**: http://localhost:8080/api/management/metrics
+- **Prometheus**: http://localhost:8080/api/management/prometheus
+- **Info**: http://localhost:8080/api/management/info
 
-### Container Deployment
+### Custom Metrics
+- `shipments.created` - Shipments created
+- `loads.tendered` - Load tenders sent
+- `loads.booked` - Load bookings confirmed
+- `carrier.api.calls` - Carrier API invocations
+- `carrier.api.latency` - Carrier API response times
+- `tracking.jobs.succeeded` - Successful tracking updates
+- `tracking.jobs.failed` - Failed tracking updates
 
-```bash
-# Build image
-docker build -t shipment-transport:latest .
+## Contributing
 
-# Run container
-docker run -d \
-  -p 8080:8080 \
-  -e MONGODB_URI=mongodb://mongodb:27017/shipment_transport \
-  -e KAFKA_BROKERS=kafka:9092 \
-  shipment-transport:latest
-```
+1. Follow hexagonal architecture principles
+2. Implement domain logic in domain layer
+3. Use carrier adapters for external integrations
+4. Maintain aggregate consistency boundaries
+5. Use transactional outbox for event publishing
+6. Write comprehensive tests including contract tests
+7. Document domain concepts using ubiquitous language
+8. Follow existing code style and conventions
 
-### Kubernetes Deployment
+## License
 
-```bash
-# Apply manifests
-kubectl apply -f k8s/
-
-# Check deployment status
-kubectl get pods -n shipment-transport
-
-# View logs
-kubectl logs -f deployment/shipment-transport -n shipment-transport
-```
-
-### Production Considerations
-
-- **Resource Limits**: Set appropriate CPU/memory limits
-- **Health Checks**: Configure liveness and readiness probes
-- **Secrets Management**: Use Kubernetes secrets for API keys
-- **Monitoring**: Set up Prometheus metrics scraping
-- **Logging**: Configure structured logging with correlation IDs
-
-## 🤝 Contributing
-
-### Development Setup
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes following the architecture patterns
-4. Ensure tests pass: `./mvnw verify`
-5. Submit a pull request
-
-### Code Standards
-
-- Follow Domain-Driven Design principles
-- Maintain hexagonal architecture boundaries
-- Write comprehensive tests (unit + integration)
-- Use meaningful commit messages
-- Update documentation for new features
-
-### Architecture Decision Records
-
-Major architectural decisions are documented in `/docs/adr/`:
-- ADR-001: Hexagonal Architecture Choice
-- ADR-002: Transactional Outbox Pattern
-- ADR-003: CloudEvents Standard Adoption
-
-## 📚 Additional Resources
-
-- [Architecture Guide](ARCHITECTURE.md) - Detailed architectural overview
-- [Domain Implementation Guide](docs/DOMAIN_IMPLEMENTATION_GUIDE.md) - Domain layer patterns
-- [Testing Guide](docs/TESTING_GUIDE.md) - Testing strategies and examples
-- [Configuration Guide](docs/CONFIGURATION_DEPLOYMENT_GUIDE.md) - Setup and deployment
-- [OpenAPI Specification](openapi.yaml) - REST API contract
-- [AsyncAPI Specification](asyncapi.yaml) - Event contracts
-
-## 📜 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🆘 Support
-
-For questions, issues, or contributions:
-- Create an issue in the repository
-- Contact the development team
-- Check the documentation in the `/docs` directory
-
----
-
-**Built with ❤️ using Spring Boot, Domain-Driven Design, and Hexagonal Architecture**
+Copyright © 2024 Paklog. All rights reserved.
