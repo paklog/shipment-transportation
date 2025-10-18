@@ -1,0 +1,40 @@
+title: Shipment & Transportation Service Documentation
+description: Carrier integration and shipment tracking with DDD and hexagonal architecture
+theme: jekyll-theme-cayman
+baseurl: "/shipment-transportation"
+url: "https://paklog.github.io"
+
+# Navigation
+navigation:
+  - title: Home
+    url: /
+  - title: Architecture
+    url: /ARCHITECTURE
+  - title: Domain Guide
+    url: /DOMAIN_IMPLEMENTATION_GUIDE
+  - title: Testing Guide
+    url: /TESTING_GUIDE
+  - title: Configuration
+    url: /CONFIGURATION_DEPLOYMENT_GUIDE
+  - title: Security
+    url: /security/
+
+# GitHub
+github:
+  repository_url: https://github.com/paklog/shipment-transportation
+
+# Build settings
+markdown: kramdown
+plugins:
+  - jekyll-relative-links
+
+relative_links:
+  enabled: true
+  collections: false
+
+# Exclude from processing
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor
