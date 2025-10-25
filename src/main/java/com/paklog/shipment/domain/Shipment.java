@@ -23,14 +23,14 @@ public class Shipment {
     private OffsetDateTime lastUpdatedAt;
 
     private Shipment(ShipmentId id, OrderId orderId, CarrierName carrierName, OffsetDateTime createdAt) {
-        this.id = Objects.requireNonNull(id, "Shipment id cannot be null");
-        this.orderId = Objects.requireNonNull(orderId, "Order id cannot be null");
-        this.carrierName = Objects.requireNonNull(carrierName, "Carrier cannot be null");
-        this.createdAt = Objects.requireNonNull(createdAt, "Creation timestamp cannot be null");
-        this.status = ShipmentStatus.CREATED;
+        this.id = id;
+        this.orderId = orderId;
+        this.carrierName = carrierName;
+        this.createdAt = createdAt;
         this.trackingEvents = new ArrayList<>();
-        this.lastUpdatedAt = this.createdAt;
     }
+
+
 
     public static Shipment create(OrderId orderId, CarrierName carrierName, OffsetDateTime createdAt) {
         return new Shipment(ShipmentId.generate(), orderId, carrierName, createdAt);
